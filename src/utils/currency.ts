@@ -39,9 +39,11 @@ export function decimalStringToCents(value: string) {
 }
 
 export function centsToDecimalString(value: number) {
-  const normalizedValue = Math.max(0, Math.round(value))
-  const reais = Math.floor(normalizedValue / 100)
-  const cents = normalizedValue % 100
+  const normalizedValue = Math.round(value)
+  const signal = normalizedValue < 0 ? '-' : ''
+  const absoluteValue = Math.abs(normalizedValue)
+  const reais = Math.floor(absoluteValue / 100)
+  const cents = absoluteValue % 100
 
-  return `${reais}.${cents.toString().padStart(2, '0')}`
+  return `${signal}${reais}.${cents.toString().padStart(2, '0')}`
 }

@@ -21,7 +21,17 @@ export type CalculatedOrder = {
   total: string
 }
 
-export async function calculateOrder(input: OrderInput): Promise<CalculatedOrder | null> {
+export type OrderCalculationResult =
+  | {
+      order: CalculatedOrder
+      success: true
+    }
+  | {
+      message: string
+      success: false
+    }
+
+export async function calculateOrder(input: OrderInput): Promise<OrderCalculationResult> {
   const productIds = input.items
     .filter((item) => item.type === OrderItemType.PRODUCT && item.productId)
     .map((item) => item.productId as string)
@@ -78,7 +88,10 @@ export async function calculateOrder(input: OrderInput): Promise<CalculatedOrder
         !product.subcategory.isActive ||
         !product.subcategory.category.isActive
       ) {
-        return null
+        return {
+          message: 'O pedido contém produtos inexistentes ou inativos.',
+          success: false,
+        }
       }
 
       const unitPrice = product.salePrice.toString()
@@ -98,7 +111,10 @@ export async function calculateOrder(input: OrderInput): Promise<CalculatedOrder
       const packageItem = packages.find((currentPackage) => currentPackage.id === item.packageId)
 
       if (!packageItem?.isActive) {
-        return null
+        return {
+          message: 'O pedido contém pacotes inexistentes ou inativos.',
+          success: false,
+        }
       }
 
       const unitPrice = packageItem.salePrice.toString()
@@ -120,13 +136,23 @@ export async function calculateOrder(input: OrderInput): Promise<CalculatedOrder
   const totalCents =
     subtotalCents - decimalStringToCents(discount) + decimalStringToCents(deliveryFee)
 
+  if (totalCents < 0) {
+    return {
+      message: 'O desconto não pode ser maior que o subtotal somado à entrega.',
+      success: false,
+    }
+  }
+
   return {
-    deliveryDate: input.deliveryDate ? new Date(`${input.deliveryDate}T00:00:00`) : null,
-    deliveryFee,
-    discount,
-    items: calculatedItems,
-    notes: normalizeOptionalText(input.notes),
-    total: centsToDecimalString(totalCents),
+    order: {
+      deliveryDate: input.deliveryDate ? new Date(`${input.deliveryDate}T00:00:00`) : null,
+      deliveryFee,
+      discount,
+      items: calculatedItems,
+      notes: normalizeOptionalText(input.notes),
+      total: centsToDecimalString(totalCents),
+    },
+    success: true,
   }
 }
 

@@ -19,7 +19,7 @@ export async function updateOrder(input: UpdateOrderInput): Promise<ActionResult
   }
 
   const { id, ...orderInput } = parsedInput.data
-  const [customer, paymentMethod, calculatedOrder] = await Promise.all([
+  const [customer, paymentMethod, calculationResult] = await Promise.all([
     prisma.customer.findUnique({
       select: {
         isActive: true,
@@ -59,12 +59,14 @@ export async function updateOrder(input: UpdateOrderInput): Promise<ActionResult
     }
   }
 
-  if (!calculatedOrder) {
+  if (!calculationResult.success) {
     return {
-      message: 'O pedido contém itens inexistentes ou inativos.',
+      message: calculationResult.message,
       success: false,
     }
   }
+
+  const calculatedOrder = calculationResult.order
 
   await prisma.$transaction(async (transaction) => {
     await transaction.order.update({
