@@ -30,3 +30,18 @@ export function parseCurrencyToDecimalString(value: string) {
 
   return numericValue.toFixed(2)
 }
+
+export function decimalStringToCents(value: string) {
+  const [rawReais = '0', rawCents = '0'] = value.split('.')
+  const cents = rawCents.padEnd(2, '0').slice(0, 2)
+
+  return Number(rawReais) * 100 + Number(cents)
+}
+
+export function centsToDecimalString(value: number) {
+  const normalizedValue = Math.max(0, Math.round(value))
+  const reais = Math.floor(normalizedValue / 100)
+  const cents = normalizedValue % 100
+
+  return `${reais}.${cents.toString().padStart(2, '0')}`
+}

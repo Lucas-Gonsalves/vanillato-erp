@@ -1,6 +1,7 @@
 export * from './auth'
 export * from './category'
 export * from './customer'
+export * from './order'
 export * from './package'
 export * from './payment-method'
 export * from './product'
