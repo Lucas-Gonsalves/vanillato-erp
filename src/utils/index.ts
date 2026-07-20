@@ -1,2 +1,1 @@
-// exporter of archives
-// export * from
+export * from './currency'
