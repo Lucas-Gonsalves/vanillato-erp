@@ -3,13 +3,15 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "build": "next build",
+    "build": "pnpm prisma:generate && next build",
     "start": "next start",
     "start:dev": "next dev",
     "lint": "eslint",
     "lint:fix": "eslint --fix",
     "format": "prettier --write .",
-    "validate:typecheck": "tsc --noEmit --skipLibCheck"
+    "prisma:generate": "prisma generate",
+    "seed": "pnpm prisma:generate && tsx prisma/seed.ts",
+    "validate:typecheck": "pnpm prisma:generate && tsc --noEmit --skipLibCheck"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.2.2",
@@ -50,5 +52,8 @@
     "prettier-plugin-tailwindcss": "^0.7.2",
     "tailwindcss": "^4",
     "typescript": "^5"
+  },
+  "prisma": {
+    "seed": "tsx prisma/seed.ts"
   }
 }

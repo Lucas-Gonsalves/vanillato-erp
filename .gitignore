@@ -45,8 +45,5 @@ next-env.d.ts
 /pgdata
 
 # generated files
-generated/
-
-/app/generated/prisma
-
-/app/generated/prisma
+/generated/
+/src/generated/

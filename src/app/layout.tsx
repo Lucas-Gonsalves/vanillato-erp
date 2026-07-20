@@ -4,7 +4,6 @@ import type { Metadata } from 'next'
 import { Geist, Inter } from 'next/font/google'
 import { Toaster } from 'sonner'
 
-import { Header } from '@/components/header'
 import { cn } from '@/lib/utils'
 
 const geist = Geist({ subsets: ['latin'], variable: '--font-sans' })
@@ -22,8 +21,8 @@ const interTight = Inter({
 })
 
 export const metadata: Metadata = {
-  title: '',
-  description: '',
+  title: 'Vanillato ERP',
+  description: 'Sistema interno de gestão da Vanillato.',
 }
 
 export default function RootLayout({
@@ -32,13 +31,10 @@ export default function RootLayout({
   children: React.ReactNode
 }>) {
   return (
-    <html lang="en" className={cn('font-sans', geist.variable)}>
+    <html lang="pt-BR" className={cn('dark font-sans', geist.variable)}>
       <body className={`${inter.variable} ${interTight.variable} h-full antialiased`}>
-        <Header />
-        <main className="">
-          {children}
-          <Toaster position="top-right" />
-        </main>
+        {children}
+        <Toaster position="top-right" richColors />
       </body>
     </html>
   )
