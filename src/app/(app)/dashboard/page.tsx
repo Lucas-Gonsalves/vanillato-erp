@@ -1,8 +1,12 @@
+import { Plus, ReceiptText, ShoppingBag, Users } from 'lucide-react'
 import Link from 'next/link'
 
 import { Badge } from '@/components/ui/badge'
+import { buttonVariants } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { OrderStatus } from '@/generated/prisma/enums'
 import prisma from '@/lib/prisma'
+import { cn } from '@/lib/utils'
 import { formatCurrency } from '@/utils'
 
 const orderStatusLabels = {
@@ -15,17 +19,26 @@ const orderStatusLabels = {
 
 export default async function DashboardPage() {
   const [
-    customersCount,
     pendingOrders,
     productionOrders,
     readyOrders,
+    overdueOrders,
     recentCustomers,
     recentOrders,
   ] = await Promise.all([
-    prisma.customer.count(),
-    prisma.order.count({ where: { status: 'PENDING' } }),
-    prisma.order.count({ where: { status: 'IN_PRODUCTION' } }),
-    prisma.order.count({ where: { status: 'READY' } }),
+    prisma.order.count({ where: { status: OrderStatus.PENDING } }),
+    prisma.order.count({ where: { status: OrderStatus.IN_PRODUCTION } }),
+    prisma.order.count({ where: { status: OrderStatus.READY } }),
+    prisma.order.count({
+      where: {
+        deliveryDate: {
+          lt: new Date(),
+        },
+        status: {
+          in: [OrderStatus.PENDING, OrderStatus.IN_PRODUCTION, OrderStatus.READY],
+        },
+      },
+    }),
     prisma.customer.findMany({
       orderBy: {
         createdAt: 'desc',
@@ -71,8 +84,8 @@ export default async function DashboardPage() {
       value: readyOrders,
     },
     {
-      label: 'Clientes',
-      value: customersCount,
+      label: 'Atrasados',
+      value: overdueOrders,
     },
   ]
 
@@ -91,6 +104,28 @@ export default async function DashboardPage() {
         ))}
       </section>
 
+      <section className="flex flex-wrap gap-2">
+        <Link className={cn(buttonVariants())} href="/orders/new">
+          <Plus className="size-4" />
+          Novo Pedido
+        </Link>
+        <Link
+          className={cn(buttonVariants({ variant: 'secondary' }))}
+          href="/orders?status=PENDING"
+        >
+          <ReceiptText className="size-4" />
+          Pendentes
+        </Link>
+        <Link className={cn(buttonVariants({ variant: 'secondary' }))} href="/customers">
+          <Users className="size-4" />
+          Clientes
+        </Link>
+        <Link className={cn(buttonVariants({ variant: 'secondary' }))} href="/products">
+          <ShoppingBag className="size-4" />
+          Produtos
+        </Link>
+      </section>
+
       <section className="grid gap-6 lg:grid-cols-[1fr_360px]">
         <div className="space-y-6">
           <Card>
@@ -102,6 +137,7 @@ export default async function DashboardPage() {
                 <StatusSummary label="Pendentes" value={pendingOrders} variant="warning" />
                 <StatusSummary label="Em produção" value={productionOrders} variant="secondary" />
                 <StatusSummary label="Prontos" value={readyOrders} variant="success" />
+                <StatusSummary label="Atrasados" value={overdueOrders} variant="destructive" />
               </div>
             </CardContent>
           </Card>
@@ -182,7 +218,7 @@ export default async function DashboardPage() {
 type StatusSummaryProps = {
   label: string
   value: number
-  variant: 'secondary' | 'success' | 'warning'
+  variant: 'destructive' | 'secondary' | 'success' | 'warning'
 }
 
 function getOrderStatusVariant(status: keyof typeof orderStatusLabels) {

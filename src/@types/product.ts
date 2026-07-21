@@ -1,4 +1,5 @@
 export type ProductSubcategoryOption = {
+  categoryId: string
   categoryName: string
   id: string
   name: string

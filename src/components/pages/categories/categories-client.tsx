@@ -1,12 +1,17 @@
 'use client'
 
-import { Archive, FolderPlus, Pencil, Plus, Search } from 'lucide-react'
+import { Archive, FolderPlus, Pencil, Plus, RotateCcw, Search } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import { useMemo, useState } from 'react'
 import { toast } from 'sonner'
 
 import type { CategoryListItem, SubcategoryListItem } from '@/@types'
-import { deactivateCategory, deactivateSubcategory } from '@/actions/category'
+import {
+  deactivateCategory,
+  deactivateSubcategory,
+  reactivateCategory,
+  reactivateSubcategory,
+} from '@/actions/category'
 import { PageHeader } from '@/components/page-header'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -15,6 +20,7 @@ import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import { EmptyState } from '@/components/ui/empty-state'
 import { Input } from '@/components/ui/input'
 import { Modal } from '@/components/ui/modal'
+import { useDebouncedRouteSearch } from '@/hooks'
 
 import { CategoryForm } from './category-form'
 import { SubcategoryForm } from './subcategory-form'
@@ -58,7 +64,10 @@ type ConfirmState =
 
 export function CategoriesClient({ categories, search }: CategoriesClientProps) {
   const router = useRouter()
-  const [searchValue, setSearchValue] = useState(search)
+  const { searchValue, setSearchValue, submitSearch } = useDebouncedRouteSearch({
+    initialSearch: search,
+    pathname: '/categories',
+  })
   const [dialogState, setDialogState] = useState<CategoryDialog>(null)
   const [confirmState, setConfirmState] = useState<ConfirmState>(null)
   const hasSearch = search.trim().length > 0
@@ -78,15 +87,7 @@ export function CategoriesClient({ categories, search }: CategoriesClientProps) 
   function handleSearch(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault()
 
-    const params = new URLSearchParams()
-    const trimmedSearchValue = searchValue.trim()
-
-    if (trimmedSearchValue) {
-      params.set('search', trimmedSearchValue)
-    }
-
-    const queryString = params.toString()
-    router.push(queryString ? `/categories?${queryString}` : '/categories')
+    submitSearch()
   }
 
   async function handleConfirm() {
@@ -106,6 +107,30 @@ export function CategoriesClient({ categories, search }: CategoriesClientProps) 
 
     toast.success(result.message)
     setConfirmState(null)
+    router.refresh()
+  }
+
+  async function handleReactivateCategory(category: CategoryListItem) {
+    const result = await reactivateCategory({ id: category.id })
+
+    if (!result.success) {
+      toast.error(result.message)
+      return
+    }
+
+    toast.success(result.message)
+    router.refresh()
+  }
+
+  async function handleReactivateSubcategory(subcategory: SubcategoryListItem) {
+    const result = await reactivateSubcategory({ id: subcategory.id })
+
+    if (!result.success) {
+      toast.error(result.message)
+      return
+    }
+
+    toast.success(result.message)
     router.refresh()
   }
 
@@ -165,7 +190,17 @@ export function CategoriesClient({ categories, search }: CategoriesClientProps) 
                     >
                       <FolderPlus className="size-4" />
                     </Button>
-                  ) : null}
+                  ) : (
+                    <Button
+                      aria-label={`Reativar ${category.name}`}
+                      onClick={() => void handleReactivateCategory(category)}
+                      size="icon"
+                      type="button"
+                      variant="ghost"
+                    >
+                      <RotateCcw className="size-4" />
+                    </Button>
+                  )}
                   <Button
                     aria-label={`Editar ${category.name}`}
                     onClick={() => setDialogState({ category, type: 'edit-category' })}
@@ -231,7 +266,17 @@ export function CategoriesClient({ categories, search }: CategoriesClientProps) 
                             >
                               <Archive className="size-4" />
                             </Button>
-                          ) : null}
+                          ) : (
+                            <Button
+                              aria-label={`Reativar ${subcategory.name}`}
+                              onClick={() => void handleReactivateSubcategory(subcategory)}
+                              size="icon"
+                              type="button"
+                              variant="ghost"
+                            >
+                              <RotateCcw className="size-4" />
+                            </Button>
+                          )}
                         </div>
                       </div>
                     ))}

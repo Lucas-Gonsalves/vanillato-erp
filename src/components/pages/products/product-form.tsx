@@ -2,7 +2,7 @@
 
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useRouter } from 'next/navigation'
-import { useTransition } from 'react'
+import { useMemo, useState, useTransition } from 'react'
 import { useForm } from 'react-hook-form'
 import { toast } from 'sonner'
 
@@ -27,6 +27,7 @@ export function ProductForm({ onSuccess, product, subcategories }: ProductFormPr
     handleSubmit,
     register,
     setError,
+    setValue,
   } = useForm<ProductInput>({
     defaultValues: {
       costPrice: product?.costPrice ? decimalToInputValue(product.costPrice) : '',
@@ -36,6 +37,30 @@ export function ProductForm({ onSuccess, product, subcategories }: ProductFormPr
     },
     resolver: zodResolver(productSchema),
   })
+  const initialCategoryId =
+    subcategories.find((subcategory) => subcategory.id === product?.subcategoryId)?.categoryId ??
+    subcategories[0]?.categoryId ??
+    ''
+  const [categoryId, setCategoryId] = useState(initialCategoryId)
+  const categoryOptions = useMemo(
+    () =>
+      Array.from(
+        new Map(
+          subcategories.map((subcategory) => [
+            subcategory.categoryId,
+            {
+              id: subcategory.categoryId,
+              name: subcategory.categoryName,
+            },
+          ]),
+        ).values(),
+      ),
+    [subcategories],
+  )
+  const filteredSubcategories = useMemo(
+    () => subcategories.filter((subcategory) => subcategory.categoryId === categoryId),
+    [categoryId, subcategories],
+  )
 
   function onSubmit(values: ProductInput) {
     startTransition(() => {
@@ -96,13 +121,32 @@ export function ProductForm({ onSuccess, product, subcategories }: ProductFormPr
           ) : null}
         </div>
 
-        <div className="space-y-2 sm:col-span-2">
+        <div className="space-y-2">
+          <Label htmlFor="product-category">Categoria</Label>
+          <Select
+            id="product-category"
+            onChange={(event) => {
+              setCategoryId(event.target.value)
+              setValue('subcategoryId', '', { shouldDirty: true, shouldValidate: true })
+            }}
+            value={categoryId}
+          >
+            <option value="">Selecione uma categoria</option>
+            {categoryOptions.map((category) => (
+              <option key={category.id} value={category.id}>
+                {category.name}
+              </option>
+            ))}
+          </Select>
+        </div>
+
+        <div className="space-y-2">
           <Label htmlFor="product-subcategory">Subcategoria</Label>
           <Select id="product-subcategory" {...register('subcategoryId')}>
             <option value="">Selecione uma subcategoria</option>
-            {subcategories.map((subcategory) => (
+            {filteredSubcategories.map((subcategory) => (
               <option key={subcategory.id} value={subcategory.id}>
-                {subcategory.categoryName} / {subcategory.name}
+                {subcategory.name}
               </option>
             ))}
           </Select>

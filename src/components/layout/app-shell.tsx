@@ -9,6 +9,7 @@ import {
   ReceiptText,
   ShoppingBag,
   Users,
+  WalletCards,
   X,
 } from 'lucide-react'
 import Image from 'next/image'
@@ -71,6 +72,12 @@ const navigationItems = [
     icon: CreditCard,
     label: 'Formas de Pagamento',
     title: 'Formas de Pagamento',
+  },
+  {
+    href: '/financial',
+    icon: WalletCards,
+    label: 'Financeiro',
+    title: 'Financeiro',
   },
 ] as const
 

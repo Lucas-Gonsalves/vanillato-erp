@@ -1,12 +1,12 @@
 'use client'
 
-import { Archive, Pencil, Plus, Search } from 'lucide-react'
+import { Archive, Pencil, Plus, RotateCcw, Search } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import { useMemo, useState } from 'react'
 import { toast } from 'sonner'
 
 import type { PaymentMethodListItem } from '@/@types'
-import { deactivatePaymentMethod } from '@/actions/payment-method'
+import { deactivatePaymentMethod, reactivatePaymentMethod } from '@/actions/payment-method'
 import { PageHeader } from '@/components/page-header'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -22,6 +22,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
+import { useDebouncedRouteSearch } from '@/hooks'
 
 import { PaymentMethodForm } from './payment-method-form'
 
@@ -43,7 +44,10 @@ type DialogState =
 
 export function PaymentMethodsClient({ paymentMethods, search }: PaymentMethodsClientProps) {
   const router = useRouter()
-  const [searchValue, setSearchValue] = useState(search)
+  const { searchValue, setSearchValue, submitSearch } = useDebouncedRouteSearch({
+    initialSearch: search,
+    pathname: '/payment-methods',
+  })
   const [dialogState, setDialogState] = useState<DialogState>(null)
   const [paymentMethodToDeactivate, setPaymentMethodToDeactivate] =
     useState<PaymentMethodListItem | null>(null)
@@ -57,15 +61,7 @@ export function PaymentMethodsClient({ paymentMethods, search }: PaymentMethodsC
   function handleSearch(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault()
 
-    const params = new URLSearchParams()
-    const trimmedSearchValue = searchValue.trim()
-
-    if (trimmedSearchValue) {
-      params.set('search', trimmedSearchValue)
-    }
-
-    const queryString = params.toString()
-    router.push(queryString ? `/payment-methods?${queryString}` : '/payment-methods')
+    submitSearch()
   }
 
   async function handleDeactivatePaymentMethod() {
@@ -82,6 +78,18 @@ export function PaymentMethodsClient({ paymentMethods, search }: PaymentMethodsC
 
     toast.success(result.message)
     setPaymentMethodToDeactivate(null)
+    router.refresh()
+  }
+
+  async function handleReactivatePaymentMethod(paymentMethod: PaymentMethodListItem) {
+    const result = await reactivatePaymentMethod({ id: paymentMethod.id })
+
+    if (!result.success) {
+      toast.error(result.message)
+      return
+    }
+
+    toast.success(result.message)
     router.refresh()
   }
 
@@ -155,7 +163,17 @@ export function PaymentMethodsClient({ paymentMethods, search }: PaymentMethodsC
                         >
                           <Archive className="size-4" />
                         </Button>
-                      ) : null}
+                      ) : (
+                        <Button
+                          aria-label={`Reativar ${paymentMethod.name}`}
+                          onClick={() => void handleReactivatePaymentMethod(paymentMethod)}
+                          size="icon"
+                          type="button"
+                          variant="ghost"
+                        >
+                          <RotateCcw className="size-4" />
+                        </Button>
+                      )}
                     </div>
                   </TableCell>
                 </TableRow>

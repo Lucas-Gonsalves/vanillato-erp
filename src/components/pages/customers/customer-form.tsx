@@ -17,6 +17,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
+import { formatPhone } from '@/utils'
 
 type CustomerFormProps = {
   customer?: CustomerListItem
@@ -43,6 +44,8 @@ export function CustomerForm({ customer, onSuccess }: CustomerFormProps) {
     },
     resolver: zodResolver(customerSchema),
   })
+
+  const phoneField = register('phone')
 
   function onSubmit(values: CustomerInput) {
     startTransition(() => {
@@ -81,7 +84,15 @@ export function CustomerForm({ customer, onSuccess }: CustomerFormProps) {
         </FormField>
 
         <FormField error={errors.phone?.message} label="Telefone" name="phone">
-          <Input id="phone" placeholder="(00) 00000-0000" {...register('phone')} />
+          <Input
+            id="phone"
+            placeholder="(00) 00000-0000"
+            {...phoneField}
+            onChange={(event) => {
+              event.target.value = formatPhone(event.target.value)
+              void phoneField.onChange(event)
+            }}
+          />
         </FormField>
 
         <FormField error={errors.instagram?.message} label="Instagram" name="instagram">

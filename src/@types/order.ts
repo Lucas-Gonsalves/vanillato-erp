@@ -28,6 +28,13 @@ export type OrderCatalogOption = {
   price: string
 }
 
+export type OrderProductOption = OrderCatalogOption & {
+  categoryId: string
+  categoryName: string
+  subcategoryId: string
+  subcategoryName: string
+}
+
 export type OrderFormItem = {
   packageId?: string
   productId?: string
@@ -50,5 +57,5 @@ export type OrderFormOptions = {
   customers: OrderCustomerOption[]
   packages: OrderCatalogOption[]
   paymentMethods: OrderPaymentMethodOption[]
-  products: OrderCatalogOption[]
+  products: OrderProductOption[]
 }

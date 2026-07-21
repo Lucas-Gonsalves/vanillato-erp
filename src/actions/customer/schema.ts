@@ -1,5 +1,7 @@
 import { z } from 'zod'
 
+import { isValidPhone } from '@/utils'
+
 export const customerSchema = z.object({
   address: z.string().trim().max(180, 'O endereço deve ter no máximo 180 caracteres.').optional(),
   city: z.string().trim().max(80, 'A cidade deve ter no máximo 80 caracteres.').optional(),
@@ -15,7 +17,12 @@ export const customerSchema = z.object({
     .trim()
     .max(500, 'As observações devem ter no máximo 500 caracteres.')
     .optional(),
-  phone: z.string().trim().max(30, 'O telefone deve ter no máximo 30 caracteres.').optional(),
+  phone: z
+    .string()
+    .trim()
+    .max(30, 'O telefone deve ter no máximo 30 caracteres.')
+    .optional()
+    .refine(isValidPhone, 'Informe um telefone válido.'),
 })
 
 export const customerIdSchema = z.object({

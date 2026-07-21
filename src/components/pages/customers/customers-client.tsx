@@ -1,12 +1,12 @@
 'use client'
 
-import { Archive, Pencil, Plus, Search } from 'lucide-react'
+import { Archive, Pencil, Plus, RotateCcw, Search } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import { useMemo, useState } from 'react'
 import { toast } from 'sonner'
 
 import type { CustomerListItem } from '@/@types'
-import { deactivateCustomer } from '@/actions/customer'
+import { deactivateCustomer, reactivateCustomer } from '@/actions/customer'
 import { PageHeader } from '@/components/page-header'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -22,6 +22,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
+import { useDebouncedRouteSearch } from '@/hooks'
 
 import { CustomerForm } from './customer-form'
 
@@ -43,7 +44,10 @@ type DialogState =
 
 export function CustomersClient({ customers, search }: CustomersClientProps) {
   const router = useRouter()
-  const [searchValue, setSearchValue] = useState(search)
+  const { searchValue, setSearchValue, submitSearch } = useDebouncedRouteSearch({
+    initialSearch: search,
+    pathname: '/customers',
+  })
   const [dialogState, setDialogState] = useState<DialogState>(null)
   const [customerToDeactivate, setCustomerToDeactivate] = useState<CustomerListItem | null>(null)
 
@@ -62,15 +66,7 @@ export function CustomersClient({ customers, search }: CustomersClientProps) {
   function handleSearch(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault()
 
-    const params = new URLSearchParams()
-    const trimmedSearchValue = searchValue.trim()
-
-    if (trimmedSearchValue) {
-      params.set('search', trimmedSearchValue)
-    }
-
-    const queryString = params.toString()
-    router.push(queryString ? `/customers?${queryString}` : '/customers')
+    submitSearch()
   }
 
   function handleDeactivateCustomer() {
@@ -86,6 +82,18 @@ export function CustomersClient({ customers, search }: CustomersClientProps) {
 
       toast.success(result.message)
       setCustomerToDeactivate(null)
+      router.refresh()
+    })
+  }
+
+  function handleReactivateCustomer(customer: CustomerListItem) {
+    void reactivateCustomer({ id: customer.id }).then((result) => {
+      if (!result.success) {
+        toast.error(result.message)
+        return
+      }
+
+      toast.success(result.message)
       router.refresh()
     })
   }
@@ -186,7 +194,17 @@ export function CustomersClient({ customers, search }: CustomersClientProps) {
                           >
                             <Archive className="size-4" />
                           </Button>
-                        ) : null}
+                        ) : (
+                          <Button
+                            aria-label={`Reativar ${customer.name}`}
+                            onClick={() => handleReactivateCustomer(customer)}
+                            size="icon"
+                            type="button"
+                            variant="ghost"
+                          >
+                            <RotateCcw className="size-4" />
+                          </Button>
+                        )}
                       </div>
                     </TableCell>
                   </TableRow>

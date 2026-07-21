@@ -58,6 +58,7 @@ export default async function ProductsPage({ searchParams }: ProductsPageProps) 
       select: {
         category: {
           select: {
+            id: true,
             name: true,
           },
         },
@@ -87,6 +88,7 @@ export default async function ProductsPage({ searchParams }: ProductsPageProps) 
       }))}
       search={trimmedSearch}
       subcategories={subcategories.map((subcategory) => ({
+        categoryId: subcategory.category.id,
         categoryName: subcategory.category.name,
         id: subcategory.id,
         name: subcategory.name,

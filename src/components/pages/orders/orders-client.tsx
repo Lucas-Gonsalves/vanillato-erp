@@ -1,13 +1,13 @@
 'use client'
 
-import { Ban, Pencil, Plus, Search } from 'lucide-react'
+import { Ban, Pencil, Plus, Search, Trash2 } from 'lucide-react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useMemo, useState, useTransition } from 'react'
 import { toast } from 'sonner'
 
 import type { OrderListItem } from '@/@types'
-import { cancelOrder, updateOrderStatus } from '@/actions/order'
+import { cancelOrder, deleteOrder, updateOrderStatus } from '@/actions/order'
 import { PageHeader } from '@/components/page-header'
 import { Badge } from '@/components/ui/badge'
 import { Button, buttonVariants } from '@/components/ui/button'
@@ -24,6 +24,7 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { OrderStatus } from '@/generated/prisma/enums'
+import { useDebouncedRouteSearch } from '@/hooks'
 import { cn } from '@/lib/utils'
 import { formatCurrency } from '@/utils'
 
@@ -51,9 +52,14 @@ const orderStatusLabels: Record<OrderStatus, string> = {
 
 export function OrdersClient({ orders, search, status }: OrdersClientProps) {
   const router = useRouter()
-  const [searchValue, setSearchValue] = useState(search)
   const [statusValue, setStatusValue] = useState(status)
+  const { searchValue, setSearchValue, submitSearch } = useDebouncedRouteSearch({
+    initialSearch: search,
+    pathname: '/orders',
+    query: statusValue ? { status: statusValue } : {},
+  })
   const [orderToCancel, setOrderToCancel] = useState<OrderListItem | null>(null)
+  const [orderToDelete, setOrderToDelete] = useState<OrderListItem | null>(null)
   const hasFilters = search.trim().length > 0 || status.trim().length > 0
 
   const activeOrdersCount = useMemo(
@@ -64,19 +70,7 @@ export function OrdersClient({ orders, search, status }: OrdersClientProps) {
   function handleSearch(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault()
 
-    const params = new URLSearchParams()
-    const trimmedSearchValue = searchValue.trim()
-
-    if (trimmedSearchValue) {
-      params.set('search', trimmedSearchValue)
-    }
-
-    if (statusValue) {
-      params.set('status', statusValue)
-    }
-
-    const queryString = params.toString()
-    router.push(queryString ? `/orders?${queryString}` : '/orders')
+    submitSearch()
   }
 
   async function handleCancelOrder() {
@@ -93,6 +87,23 @@ export function OrdersClient({ orders, search, status }: OrdersClientProps) {
 
     toast.success(result.message)
     setOrderToCancel(null)
+    router.refresh()
+  }
+
+  async function handleDeleteOrder() {
+    if (!orderToDelete) {
+      return
+    }
+
+    const result = await deleteOrder({ id: orderToDelete.id })
+
+    if (!result.success) {
+      toast.error(result.message)
+      return
+    }
+
+    toast.success(result.message)
+    setOrderToDelete(null)
     router.refresh()
   }
 
@@ -185,6 +196,15 @@ export function OrdersClient({ orders, search, status }: OrdersClientProps) {
                             <Ban className="size-4" />
                           </Button>
                         ) : null}
+                        <Button
+                          aria-label={`Excluir pedido de ${order.customerName}`}
+                          onClick={() => setOrderToDelete(order)}
+                          size="icon"
+                          type="button"
+                          variant="ghost"
+                        >
+                          <Trash2 className="size-4" />
+                        </Button>
                       </div>
                     </TableCell>
                   </TableRow>
@@ -223,6 +243,19 @@ export function OrdersClient({ orders, search, status }: OrdersClientProps) {
         onOpenChange={(open) => !open && setOrderToCancel(null)}
         open={orderToCancel !== null}
         title="Cancelar pedido"
+      />
+
+      <ConfirmDialog
+        confirmLabel="Excluir"
+        description={
+          orderToDelete
+            ? `O pedido de ${orderToDelete.customerName} será removido definitivamente. Use esta opção apenas para pedidos criados por engano.`
+            : 'O pedido será excluído definitivamente.'
+        }
+        onConfirm={handleDeleteOrder}
+        onOpenChange={(open) => !open && setOrderToDelete(null)}
+        open={orderToDelete !== null}
+        title="Excluir pedido"
       />
     </div>
   )

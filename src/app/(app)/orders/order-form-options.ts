@@ -45,6 +45,18 @@ export async function findOrderFormOptions(
         id: true,
         name: true,
         salePrice: true,
+        subcategory: {
+          select: {
+            category: {
+              select: {
+                id: true,
+                name: true,
+              },
+            },
+            id: true,
+            name: true,
+          },
+        },
       },
       where: {
         OR: [
@@ -98,9 +110,13 @@ export async function findOrderFormOptions(
     })),
     paymentMethods,
     products: products.map((product) => ({
+      categoryId: product.subcategory.category.id,
+      categoryName: product.subcategory.category.name,
       id: product.id,
       name: product.name,
       price: product.salePrice.toString(),
+      subcategoryId: product.subcategory.id,
+      subcategoryName: product.subcategory.name,
     })),
   }
 }

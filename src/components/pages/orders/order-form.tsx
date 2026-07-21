@@ -1,9 +1,10 @@
 'use client'
 
 import { zodResolver } from '@hookform/resolvers/zod'
-import { Plus, Trash2 } from 'lucide-react'
+import { Plus, Search, Trash2 } from 'lucide-react'
 import { useRouter } from 'next/navigation'
-import { useTransition } from 'react'
+import { useMemo, useState, useTransition } from 'react'
+import type { UseFormRegisterReturn } from 'react-hook-form'
 import { useFieldArray, useForm, useWatch } from 'react-hook-form'
 import { toast } from 'sonner'
 
@@ -13,6 +14,7 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { Modal } from '@/components/ui/modal'
 import { Select } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
 import { OrderItemType } from '@/generated/prisma/enums'
@@ -39,6 +41,7 @@ export function OrderForm({ options, orderData }: OrderFormProps) {
     handleSubmit,
     register,
     setError,
+    setValue,
   } = useForm<OrderInput>({
     defaultValues: {
       customerId: orderData?.customerId ?? '',
@@ -59,6 +62,11 @@ export function OrderForm({ options, orderData }: OrderFormProps) {
     control,
     name: 'items',
   })
+  const customerId = useWatch({
+    control,
+    name: 'customerId',
+  })
+  const selectedCustomer = options.customers.find((customer) => customer.id === customerId)
 
   function onSubmit(values: OrderInput) {
     startTransition(() => {
@@ -96,14 +104,21 @@ export function OrderForm({ options, orderData }: OrderFormProps) {
         <CardContent className="grid gap-4 lg:grid-cols-2">
           <div className="space-y-2">
             <Label htmlFor="order-customer">Cliente</Label>
-            <Select id="order-customer" {...register('customerId')}>
-              <option value="">Selecione um cliente</option>
-              {options.customers.map((customer) => (
-                <option key={customer.id} value={customer.id}>
-                  {customer.name} {customer.phone ? `- ${customer.phone}` : ''}
-                </option>
-              ))}
-            </Select>
+            <input type="hidden" {...register('customerId')} />
+            <CustomerPicker
+              customers={options.customers}
+              onSelect={(nextCustomerId) =>
+                setValue('customerId', nextCustomerId, {
+                  shouldDirty: true,
+                  shouldValidate: true,
+                })
+              }
+              selectedLabel={
+                selectedCustomer
+                  ? `${selectedCustomer.name}${selectedCustomer.phone ? ` - ${selectedCustomer.phone}` : ''}`
+                  : 'Selecione um cliente'
+              }
+            />
             {errors.customerId?.message ? (
               <p className="text-destructive text-sm">{errors.customerId.message}</p>
             ) : null}
@@ -188,25 +203,19 @@ export function OrderForm({ options, orderData }: OrderFormProps) {
 
                 <div className="space-y-2">
                   {currentType === OrderItemType.PRODUCT ? (
-                    <>
-                      <Label htmlFor={`order-item-product-${index}`}>Produto</Label>
-                      <Select
-                        id={`order-item-product-${index}`}
-                        {...register(`items.${index}.productId`)}
-                      >
-                        <option value="">Selecione um produto</option>
-                        {options.products.map((product) => (
-                          <option key={product.id} value={product.id}>
-                            {product.name} ({formatCurrency(product.price)})
-                          </option>
-                        ))}
-                      </Select>
-                      {errors.items?.[index]?.productId?.message ? (
-                        <p className="text-destructive text-sm">
-                          {errors.items[index]?.productId?.message}
-                        </p>
-                      ) : null}
-                    </>
+                    <ProductPicker
+                      error={errors.items?.[index]?.productId?.message}
+                      index={index}
+                      onSelect={(productId) =>
+                        setValue(`items.${index}.productId`, productId, {
+                          shouldDirty: true,
+                          shouldValidate: true,
+                        })
+                      }
+                      products={options.products}
+                      registerProduct={register(`items.${index}.productId`)}
+                      selectedProductId={watchedItems[index]?.productId ?? ''}
+                    />
                   ) : (
                     <>
                       <Label htmlFor={`order-item-package-${index}`}>Pacote</Label>
@@ -281,4 +290,195 @@ export function OrderForm({ options, orderData }: OrderFormProps) {
 
 function decimalToInputValue(value: string) {
   return value.replace('.', ',')
+}
+
+type CustomerPickerProps = {
+  customers: OrderFormOptions['customers']
+  onSelect: (customerId: string) => void
+  selectedLabel: string
+}
+
+function CustomerPicker({ customers, onSelect, selectedLabel }: CustomerPickerProps) {
+  const [isOpen, setIsOpen] = useState(false)
+  const [search, setSearch] = useState('')
+  const filteredCustomers = useMemo(() => {
+    const normalizedSearch = search.trim().toLowerCase()
+
+    if (!normalizedSearch) {
+      return customers
+    }
+
+    return customers.filter((customer) =>
+      `${customer.name} ${customer.phone ?? ''}`.toLowerCase().includes(normalizedSearch),
+    )
+  }, [customers, search])
+
+  return (
+    <>
+      <Button
+        className="w-full justify-between"
+        id="order-customer"
+        onClick={() => setIsOpen(true)}
+        type="button"
+        variant="outline"
+      >
+        <span className="truncate">{selectedLabel}</span>
+        <Search className="size-4" />
+      </Button>
+
+      <Modal
+        description="Busque e selecione o cliente do pedido."
+        onOpenChange={setIsOpen}
+        open={isOpen}
+        title="Selecionar cliente"
+      >
+        <div className="space-y-4">
+          <Input
+            autoFocus
+            onChange={(event) => setSearch(event.target.value)}
+            placeholder="Buscar por nome ou telefone"
+            value={search}
+          />
+          <div className="border-border/70 max-h-80 overflow-y-auto rounded-md border">
+            {filteredCustomers.map((customer) => (
+              <button
+                className="hover:bg-muted/50 flex w-full items-center justify-between gap-4 px-4 py-3 text-left text-sm"
+                key={customer.id}
+                onClick={() => {
+                  onSelect(customer.id)
+                  setIsOpen(false)
+                }}
+                type="button"
+              >
+                <span className="font-medium">{customer.name}</span>
+                <span className="text-muted-foreground">{customer.phone ?? 'Sem telefone'}</span>
+              </button>
+            ))}
+            {filteredCustomers.length === 0 ? (
+              <p className="text-muted-foreground px-4 py-6 text-center text-sm">
+                Nenhum cliente encontrado.
+              </p>
+            ) : null}
+          </div>
+        </div>
+      </Modal>
+    </>
+  )
+}
+
+type ProductPickerProps = {
+  error?: string
+  index: number
+  onSelect: (productId: string) => void
+  products: OrderFormOptions['products']
+  registerProduct: UseFormRegisterReturn
+  selectedProductId: string
+}
+
+function ProductPicker({
+  error,
+  index,
+  onSelect,
+  products,
+  registerProduct,
+  selectedProductId,
+}: ProductPickerProps) {
+  const selectedProduct = products.find((product) => product.id === selectedProductId)
+  const [categoryId, setCategoryId] = useState(selectedProduct?.categoryId ?? '')
+  const [subcategoryId, setSubcategoryId] = useState(selectedProduct?.subcategoryId ?? '')
+  const categories = useMemo(
+    () =>
+      Array.from(
+        new Map(
+          products.map((product) => [
+            product.categoryId,
+            {
+              id: product.categoryId,
+              name: product.categoryName,
+            },
+          ]),
+        ).values(),
+      ),
+    [products],
+  )
+  const subcategories = useMemo(
+    () =>
+      Array.from(
+        new Map(
+          products
+            .filter((product) => product.categoryId === categoryId)
+            .map((product) => [
+              product.subcategoryId,
+              {
+                id: product.subcategoryId,
+                name: product.subcategoryName,
+              },
+            ]),
+        ).values(),
+      ),
+    [categoryId, products],
+  )
+  const filteredProducts = useMemo(
+    () => products.filter((product) => product.subcategoryId === subcategoryId),
+    [products, subcategoryId],
+  )
+
+  return (
+    <div className="grid gap-3 md:grid-cols-3">
+      <input type="hidden" {...registerProduct} />
+      <div className="space-y-2">
+        <Label htmlFor={`order-item-category-${index}`}>Categoria</Label>
+        <Select
+          id={`order-item-category-${index}`}
+          onChange={(event) => {
+            setCategoryId(event.target.value)
+            setSubcategoryId('')
+            onSelect('')
+          }}
+          value={categoryId}
+        >
+          <option value="">Categoria</option>
+          {categories.map((category) => (
+            <option key={category.id} value={category.id}>
+              {category.name}
+            </option>
+          ))}
+        </Select>
+      </div>
+      <div className="space-y-2">
+        <Label htmlFor={`order-item-subcategory-${index}`}>Subcategoria</Label>
+        <Select
+          id={`order-item-subcategory-${index}`}
+          onChange={(event) => {
+            setSubcategoryId(event.target.value)
+            onSelect('')
+          }}
+          value={subcategoryId}
+        >
+          <option value="">Subcategoria</option>
+          {subcategories.map((subcategory) => (
+            <option key={subcategory.id} value={subcategory.id}>
+              {subcategory.name}
+            </option>
+          ))}
+        </Select>
+      </div>
+      <div className="space-y-2">
+        <Label htmlFor={`order-item-product-${index}`}>Produto</Label>
+        <Select
+          id={`order-item-product-${index}`}
+          onChange={(event) => onSelect(event.target.value)}
+          value={selectedProductId}
+        >
+          <option value="">Produto</option>
+          {filteredProducts.map((product) => (
+            <option key={product.id} value={product.id}>
+              {product.name} ({formatCurrency(product.price)})
+            </option>
+          ))}
+        </Select>
+        {error ? <p className="text-destructive text-sm">{error}</p> : null}
+      </div>
+    </div>
+  )
 }

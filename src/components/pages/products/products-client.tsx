@@ -1,12 +1,12 @@
 'use client'
 
-import { Archive, Pencil, Plus, Search } from 'lucide-react'
+import { Archive, Pencil, Plus, RotateCcw, Search } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import { useMemo, useState } from 'react'
 import { toast } from 'sonner'
 
 import type { ProductListItem, ProductSubcategoryOption } from '@/@types'
-import { deactivateProduct } from '@/actions/product'
+import { deactivateProduct, reactivateProduct } from '@/actions/product'
 import { PageHeader } from '@/components/page-header'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -22,6 +22,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
+import { useDebouncedRouteSearch } from '@/hooks'
 import { formatCurrency } from '@/utils'
 
 import { ProductForm } from './product-form'
@@ -45,7 +46,10 @@ type DialogState =
 
 export function ProductsClient({ products, search, subcategories }: ProductsClientProps) {
   const router = useRouter()
-  const [searchValue, setSearchValue] = useState(search)
+  const { searchValue, setSearchValue, submitSearch } = useDebouncedRouteSearch({
+    initialSearch: search,
+    pathname: '/products',
+  })
   const [dialogState, setDialogState] = useState<DialogState>(null)
   const [productToDeactivate, setProductToDeactivate] = useState<ProductListItem | null>(null)
   const hasSearch = search.trim().length > 0
@@ -58,15 +62,7 @@ export function ProductsClient({ products, search, subcategories }: ProductsClie
   function handleSearch(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault()
 
-    const params = new URLSearchParams()
-    const trimmedSearchValue = searchValue.trim()
-
-    if (trimmedSearchValue) {
-      params.set('search', trimmedSearchValue)
-    }
-
-    const queryString = params.toString()
-    router.push(queryString ? `/products?${queryString}` : '/products')
+    submitSearch()
   }
 
   async function handleDeactivateProduct() {
@@ -83,6 +79,18 @@ export function ProductsClient({ products, search, subcategories }: ProductsClie
 
     toast.success(result.message)
     setProductToDeactivate(null)
+    router.refresh()
+  }
+
+  async function handleReactivateProduct(product: ProductListItem) {
+    const result = await reactivateProduct({ id: product.id })
+
+    if (!result.success) {
+      toast.error(result.message)
+      return
+    }
+
+    toast.success(result.message)
     router.refresh()
   }
 
@@ -170,7 +178,17 @@ export function ProductsClient({ products, search, subcategories }: ProductsClie
                           >
                             <Archive className="size-4" />
                           </Button>
-                        ) : null}
+                        ) : (
+                          <Button
+                            aria-label={`Reativar ${product.name}`}
+                            onClick={() => void handleReactivateProduct(product)}
+                            size="icon"
+                            type="button"
+                            variant="ghost"
+                          >
+                            <RotateCcw className="size-4" />
+                          </Button>
+                        )}
                       </div>
                     </TableCell>
                   </TableRow>

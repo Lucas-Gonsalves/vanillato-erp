@@ -1,13 +1,13 @@
 'use client'
 
-import { Archive, Pencil, Plus, Search } from 'lucide-react'
+import { Archive, Pencil, Plus, RotateCcw, Search } from 'lucide-react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useMemo, useState } from 'react'
 import { toast } from 'sonner'
 
 import type { PackageListItem } from '@/@types'
-import { deactivatePackage } from '@/actions/package'
+import { deactivatePackage, reactivatePackage } from '@/actions/package'
 import { PageHeader } from '@/components/page-header'
 import { Badge } from '@/components/ui/badge'
 import { buttonVariants } from '@/components/ui/button'
@@ -23,6 +23,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
+import { useDebouncedRouteSearch } from '@/hooks'
 import { cn } from '@/lib/utils'
 import { formatCurrency } from '@/utils'
 
@@ -33,7 +34,10 @@ type PackagesClientProps = {
 
 export function PackagesClient({ packages, search }: PackagesClientProps) {
   const router = useRouter()
-  const [searchValue, setSearchValue] = useState(search)
+  const { searchValue, setSearchValue, submitSearch } = useDebouncedRouteSearch({
+    initialSearch: search,
+    pathname: '/packages',
+  })
   const [packageToDeactivate, setPackageToDeactivate] = useState<PackageListItem | null>(null)
   const hasSearch = search.trim().length > 0
 
@@ -45,15 +49,7 @@ export function PackagesClient({ packages, search }: PackagesClientProps) {
   function handleSearch(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault()
 
-    const params = new URLSearchParams()
-    const trimmedSearchValue = searchValue.trim()
-
-    if (trimmedSearchValue) {
-      params.set('search', trimmedSearchValue)
-    }
-
-    const queryString = params.toString()
-    router.push(queryString ? `/packages?${queryString}` : '/packages')
+    submitSearch()
   }
 
   async function handleDeactivatePackage() {
@@ -70,6 +66,18 @@ export function PackagesClient({ packages, search }: PackagesClientProps) {
 
     toast.success(result.message)
     setPackageToDeactivate(null)
+    router.refresh()
+  }
+
+  async function handleReactivatePackage(packageItem: PackageListItem) {
+    const result = await reactivatePackage({ id: packageItem.id })
+
+    if (!result.success) {
+      toast.error(result.message)
+      return
+    }
+
+    toast.success(result.message)
     router.refresh()
   }
 
@@ -146,7 +154,17 @@ export function PackagesClient({ packages, search }: PackagesClientProps) {
                           >
                             <Archive className="size-4" />
                           </Button>
-                        ) : null}
+                        ) : (
+                          <Button
+                            aria-label={`Reativar ${packageItem.name}`}
+                            onClick={() => void handleReactivatePackage(packageItem)}
+                            size="icon"
+                            type="button"
+                            variant="ghost"
+                          >
+                            <RotateCcw className="size-4" />
+                          </Button>
+                        )}
                       </div>
                     </TableCell>
                   </TableRow>
