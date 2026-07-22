@@ -1,5 +1,6 @@
 export * from './create-payment-method'
 export * from './deactivate-payment-method'
+export * from './delete-payment-method'
 export * from './reactivate-payment-method'
 export * from './schema'
 export * from './update-payment-method'

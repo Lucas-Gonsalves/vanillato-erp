@@ -1,5 +1,6 @@
 export * from './create-product'
 export * from './deactivate-product'
+export * from './delete-product'
 export * from './reactivate-product'
 export * from './schema'
 export * from './update-product'

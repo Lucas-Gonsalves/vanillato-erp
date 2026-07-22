@@ -51,7 +51,6 @@ export function OrderForm({ options, orderData }: OrderFormProps) {
       items: orderData?.items.length ? orderData.items : [emptyOrderItem],
       notes: orderData?.notes ?? '',
       expectedPaymentDate: orderData?.expectedPaymentDate ?? '',
-      expectedPaymentMethodId: orderData?.expectedPaymentMethodId ?? '',
       paymentCondition: orderData?.paymentCondition ?? PaymentCondition.CASH,
       paymentMethodId: orderData?.paymentMethodId ?? '',
       paymentNotes: orderData?.paymentNotes ?? '',
@@ -171,23 +170,6 @@ export function OrderForm({ options, orderData }: OrderFormProps) {
                 />
                 {errors.expectedPaymentDate?.message ? (
                   <p className="text-destructive text-sm">{errors.expectedPaymentDate.message}</p>
-                ) : null}
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="order-expected-payment-method">Forma prevista</Label>
-                <Select id="order-expected-payment-method" {...register('expectedPaymentMethodId')}>
-                  <option value="">Selecione uma forma</option>
-                  {options.paymentMethods.map((paymentMethod) => (
-                    <option key={paymentMethod.id} value={paymentMethod.id}>
-                      {paymentMethod.name}
-                    </option>
-                  ))}
-                </Select>
-                {errors.expectedPaymentMethodId?.message ? (
-                  <p className="text-destructive text-sm">
-                    {errors.expectedPaymentMethodId.message}
-                  </p>
                 ) : null}
               </div>
 

@@ -60,7 +60,6 @@ export const orderSchema = z
     paymentMethodId: z.string().min(1, 'Selecione uma forma de pagamento.'),
     paymentCondition: z.enum([PaymentCondition.CASH, PaymentCondition.CREDIT]),
     expectedPaymentDate: z.string().optional(),
-    expectedPaymentMethodId: z.string().optional(),
     paymentNotes: z
       .string()
       .trim()
@@ -96,14 +95,6 @@ export const orderSchema = z
           code: 'custom',
           message: 'Informe a data prevista de pagamento.',
           path: ['expectedPaymentDate'],
-        })
-      }
-
-      if (!value.expectedPaymentMethodId) {
-        context.addIssue({
-          code: 'custom',
-          message: 'Informe a forma prevista de pagamento.',
-          path: ['expectedPaymentMethodId'],
         })
       }
     }

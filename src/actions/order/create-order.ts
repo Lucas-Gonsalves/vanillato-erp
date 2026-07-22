@@ -81,10 +81,6 @@ export async function createOrder(input: OrderInput): Promise<ActionResult<Order
     parsedInput.data.paymentCondition === 'CREDIT'
       ? parseDate(parsedInput.data.expectedPaymentDate)
       : null
-  const expectedPaymentMethodId =
-    parsedInput.data.paymentCondition === 'CREDIT'
-      ? parsedInput.data.expectedPaymentMethodId || null
-      : null
   const paymentNotes =
     parsedInput.data.paymentCondition === 'CREDIT'
       ? normalizeOptionalText(parsedInput.data.paymentNotes)
@@ -99,7 +95,8 @@ export async function createOrder(input: OrderInput): Promise<ActionResult<Order
         deliveryFee: calculatedOrder.deliveryFee,
         discount: calculatedOrder.discount,
         expectedPaymentDate,
-        expectedPaymentMethodId,
+        expectedPaymentMethodId:
+          parsedInput.data.paymentCondition === 'CREDIT' ? parsedInput.data.paymentMethodId : null,
         items: {
           create: calculatedOrder.items,
         },

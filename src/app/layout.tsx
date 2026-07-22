@@ -21,7 +21,7 @@ const interTight = Inter({
 })
 
 export const metadata: Metadata = {
-  title: 'Vanillato ERP',
+  title: 'Vanillato | ERP',
   description: 'Sistema interno de gestão da Vanillato.',
 }
 

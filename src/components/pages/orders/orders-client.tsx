@@ -9,6 +9,7 @@ import { toast } from 'sonner'
 import type { OrderListItem } from '@/@types'
 import { cancelOrder, deleteOrder, updateOrderStatus } from '@/actions/order'
 import { PageHeader } from '@/components/page-header'
+import { Tooltip } from '@/components/ui'
 import { Badge } from '@/components/ui/badge'
 import { Button, buttonVariants } from '@/components/ui/button'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
@@ -178,33 +179,41 @@ export function OrdersClient({ orders, search, status }: OrdersClientProps) {
                     </TableCell>
                     <TableCell>
                       <div className="flex justify-end gap-2">
-                        <Link
-                          aria-label={`Editar pedido de ${order.customerName}`}
-                          className={cn(buttonVariants({ size: 'icon', variant: 'ghost' }))}
-                          href={`/orders/${order.id}`}
-                        >
-                          <Pencil className="size-4" />
-                        </Link>
+                        <Tooltip content={`Editar pedido de ${order.customerName}`}>
+                          <Link
+                            aria-label={`Editar pedido de ${order.customerName}`}
+                            className={cn(buttonVariants({ size: 'icon', variant: 'ghost' }))}
+                            href={`/orders/${order.id}`}
+                          >
+                            <Pencil className="size-4" />
+                          </Link>
+                        </Tooltip>
+
                         {order.status !== OrderStatus.CANCELED ? (
+                          <Tooltip content={`Cancelar pedido de ${order.customerName}`}>
+                            <Button
+                              aria-label={`Cancelar pedido de ${order.customerName}`}
+                              onClick={() => setOrderToCancel(order)}
+                              size="icon"
+                              type="button"
+                              variant="ghost"
+                            >
+                              <Ban className="size-4" />
+                            </Button>
+                          </Tooltip>
+                        ) : null}
+
+                        <Tooltip content={`Excluir pedido de ${order.customerName}`}>
                           <Button
-                            aria-label={`Cancelar pedido de ${order.customerName}`}
-                            onClick={() => setOrderToCancel(order)}
+                            aria-label={`Excluir pedido de ${order.customerName}`}
+                            onClick={() => setOrderToDelete(order)}
                             size="icon"
                             type="button"
                             variant="ghost"
                           >
-                            <Ban className="size-4" />
+                            <Trash2 className="size-4" />
                           </Button>
-                        ) : null}
-                        <Button
-                          aria-label={`Excluir pedido de ${order.customerName}`}
-                          onClick={() => setOrderToDelete(order)}
-                          size="icon"
-                          type="button"
-                          variant="ghost"
-                        >
-                          <Trash2 className="size-4" />
-                        </Button>
+                        </Tooltip>
                       </div>
                     </TableCell>
                   </TableRow>
@@ -291,6 +300,7 @@ function OrderStatusSelect({ orderId, status }: OrderStatusSelectProps) {
         disabled={isPending}
         onChange={(event) => handleChange(event.target.value as OrderStatus)}
         value={status}
+        className="max-w-33"
       >
         {orderStatusOptions.map((option) => (
           <option key={option} value={option}>

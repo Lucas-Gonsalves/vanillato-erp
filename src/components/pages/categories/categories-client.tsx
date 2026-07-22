@@ -1,6 +1,6 @@
 'use client'
 
-import { Archive, FolderPlus, Pencil, Plus, RotateCcw, Search } from 'lucide-react'
+import { Archive, FolderPlus, Pencil, Plus, RotateCcw, Search, Trash2 } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import { useMemo, useState } from 'react'
 import { toast } from 'sonner'
@@ -9,6 +9,8 @@ import type { CategoryListItem, SubcategoryListItem } from '@/@types'
 import {
   deactivateCategory,
   deactivateSubcategory,
+  deleteCategory,
+  deleteSubcategory,
   reactivateCategory,
   reactivateSubcategory,
 } from '@/actions/category'
@@ -20,6 +22,7 @@ import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import { EmptyState } from '@/components/ui/empty-state'
 import { Input } from '@/components/ui/input'
 import { Modal } from '@/components/ui/modal'
+import { Tooltip } from '@/components/ui/tooltip'
 import { useDebouncedRouteSearch } from '@/hooks'
 
 import { CategoryForm } from './category-form'
@@ -70,6 +73,7 @@ export function CategoriesClient({ categories, search }: CategoriesClientProps) 
   })
   const [dialogState, setDialogState] = useState<CategoryDialog>(null)
   const [confirmState, setConfirmState] = useState<ConfirmState>(null)
+  const [deleteState, setDeleteState] = useState<ConfirmState>(null)
   const hasSearch = search.trim().length > 0
 
   const activeCategoriesCount = useMemo(
@@ -134,6 +138,26 @@ export function CategoriesClient({ categories, search }: CategoriesClientProps) 
     router.refresh()
   }
 
+  async function handleDelete() {
+    if (!deleteState) {
+      return
+    }
+
+    const result =
+      deleteState.type === 'category'
+        ? await deleteCategory({ id: deleteState.category.id })
+        : await deleteSubcategory({ id: deleteState.subcategory.id })
+
+    if (!result.success) {
+      toast.error(result.message)
+      return
+    }
+
+    toast.success(result.message)
+    setDeleteState(null)
+    router.refresh()
+  }
+
   return (
     <div className="space-y-6">
       <PageHeader
@@ -181,46 +205,65 @@ export function CategoriesClient({ categories, search }: CategoriesClientProps) 
 
                 <div className="flex shrink-0 gap-2">
                   {category.isActive ? (
-                    <Button
-                      aria-label={`Adicionar subcategoria em ${category.name}`}
-                      onClick={() => setDialogState({ category, type: 'create-subcategory' })}
-                      size="icon"
-                      type="button"
-                      variant="ghost"
-                    >
-                      <FolderPlus className="size-4" />
-                    </Button>
+                    <Tooltip content={`Adicionar subcategoria em ${category.name}`}>
+                      <Button
+                        aria-label={`Adicionar subcategoria em ${category.name}`}
+                        onClick={() => setDialogState({ category, type: 'create-subcategory' })}
+                        size="icon"
+                        type="button"
+                        variant="ghost"
+                      >
+                        <FolderPlus className="size-4" />
+                      </Button>
+                    </Tooltip>
                   ) : (
-                    <Button
-                      aria-label={`Reativar ${category.name}`}
-                      onClick={() => void handleReactivateCategory(category)}
-                      size="icon"
-                      type="button"
-                      variant="ghost"
-                    >
-                      <RotateCcw className="size-4" />
-                    </Button>
+                    <Tooltip content={`Reativar ${category.name}`}>
+                      <Button
+                        aria-label={`Reativar ${category.name}`}
+                        onClick={() => void handleReactivateCategory(category)}
+                        size="icon"
+                        type="button"
+                        variant="ghost"
+                      >
+                        <RotateCcw className="size-4" />
+                      </Button>
+                    </Tooltip>
                   )}
-                  <Button
-                    aria-label={`Editar ${category.name}`}
-                    onClick={() => setDialogState({ category, type: 'edit-category' })}
-                    size="icon"
-                    type="button"
-                    variant="ghost"
-                  >
-                    <Pencil className="size-4" />
-                  </Button>
-                  {category.isActive ? (
+                  <Tooltip content={`Editar ${category.name}`}>
                     <Button
-                      aria-label={`Desativar ${category.name}`}
-                      onClick={() => setConfirmState({ category, type: 'category' })}
+                      aria-label={`Editar ${category.name}`}
+                      onClick={() => setDialogState({ category, type: 'edit-category' })}
                       size="icon"
                       type="button"
                       variant="ghost"
                     >
-                      <Archive className="size-4" />
+                      <Pencil className="size-4" />
                     </Button>
+                  </Tooltip>
+                  {category.isActive ? (
+                    <Tooltip content={`Inativar ${category.name}`}>
+                      <Button
+                        aria-label={`Inativar ${category.name}`}
+                        onClick={() => setConfirmState({ category, type: 'category' })}
+                        size="icon"
+                        type="button"
+                        variant="ghost"
+                      >
+                        <Archive className="size-4" />
+                      </Button>
+                    </Tooltip>
                   ) : null}
+                  <Tooltip content={`Excluir ${category.name}`}>
+                    <Button
+                      aria-label={`Excluir ${category.name}`}
+                      onClick={() => setDeleteState({ category, type: 'category' })}
+                      size="icon"
+                      type="button"
+                      variant="ghost"
+                    >
+                      <Trash2 className="size-4" />
+                    </Button>
+                  </Tooltip>
                 </div>
               </CardHeader>
 
@@ -243,40 +286,59 @@ export function CategoriesClient({ categories, search }: CategoriesClientProps) 
                         </div>
 
                         <div className="flex shrink-0 gap-2">
-                          <Button
-                            aria-label={`Editar ${subcategory.name}`}
-                            onClick={() =>
-                              setDialogState({ category, subcategory, type: 'edit-subcategory' })
-                            }
-                            size="icon"
-                            type="button"
-                            variant="ghost"
-                          >
-                            <Pencil className="size-4" />
-                          </Button>
-                          {subcategory.isActive ? (
+                          <Tooltip content={`Editar ${subcategory.name}`}>
                             <Button
-                              aria-label={`Desativar ${subcategory.name}`}
+                              aria-label={`Editar ${subcategory.name}`}
                               onClick={() =>
-                                setConfirmState({ category, subcategory, type: 'subcategory' })
+                                setDialogState({ category, subcategory, type: 'edit-subcategory' })
                               }
                               size="icon"
                               type="button"
                               variant="ghost"
                             >
-                              <Archive className="size-4" />
+                              <Pencil className="size-4" />
                             </Button>
+                          </Tooltip>
+                          {subcategory.isActive ? (
+                            <Tooltip content={`Inativar ${subcategory.name}`}>
+                              <Button
+                                aria-label={`Inativar ${subcategory.name}`}
+                                onClick={() =>
+                                  setConfirmState({ category, subcategory, type: 'subcategory' })
+                                }
+                                size="icon"
+                                type="button"
+                                variant="ghost"
+                              >
+                                <Archive className="size-4" />
+                              </Button>
+                            </Tooltip>
                           ) : (
+                            <Tooltip content={`Reativar ${subcategory.name}`}>
+                              <Button
+                                aria-label={`Reativar ${subcategory.name}`}
+                                onClick={() => void handleReactivateSubcategory(subcategory)}
+                                size="icon"
+                                type="button"
+                                variant="ghost"
+                              >
+                                <RotateCcw className="size-4" />
+                              </Button>
+                            </Tooltip>
+                          )}
+                          <Tooltip content={`Excluir ${subcategory.name}`}>
                             <Button
-                              aria-label={`Reativar ${subcategory.name}`}
-                              onClick={() => void handleReactivateSubcategory(subcategory)}
+                              aria-label={`Excluir ${subcategory.name}`}
+                              onClick={() =>
+                                setDeleteState({ category, subcategory, type: 'subcategory' })
+                              }
                               size="icon"
                               type="button"
                               variant="ghost"
                             >
-                              <RotateCcw className="size-4" />
+                              <Trash2 className="size-4" />
                             </Button>
-                          )}
+                          </Tooltip>
                         </div>
                       </div>
                     ))}
@@ -340,6 +402,15 @@ export function CategoriesClient({ categories, search }: CategoriesClientProps) 
         open={confirmState !== null}
         title="Confirmar desativação"
       />
+
+      <ConfirmDialog
+        confirmLabel="Excluir"
+        description={getDeleteDescription(deleteState)}
+        onConfirm={handleDelete}
+        onOpenChange={(open) => !open && setDeleteState(null)}
+        open={deleteState !== null}
+        title="Confirmar exclusão"
+      />
     </div>
   )
 }
@@ -393,4 +464,16 @@ function getConfirmDescription(confirmState: ConfirmState) {
   }
 
   return `A subcategoria ${confirmState.subcategory.name} ficará inativa, mas o histórico será mantido.`
+}
+
+function getDeleteDescription(deleteState: ConfirmState) {
+  if (!deleteState) {
+    return 'O registro será excluído definitivamente se não tiver relação com pedidos.'
+  }
+
+  if (deleteState.type === 'category') {
+    return `A categoria ${deleteState.category.name} será excluída definitivamente se não possuir produtos usados em pedidos.`
+  }
+
+  return `A subcategoria ${deleteState.subcategory.name} será excluída definitivamente se não possuir produtos usados em pedidos.`
 }

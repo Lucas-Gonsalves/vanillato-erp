@@ -63,7 +63,7 @@ export function LoginForm() {
             autoComplete="email"
             className="pl-9"
             id="email"
-            placeholder="admin@vanillato.com"
+            placeholder="user@email.com"
             type="email"
             {...register('email')}
           />

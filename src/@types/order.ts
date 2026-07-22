@@ -51,7 +51,6 @@ export type OrderFormData = {
   items: OrderFormItem[]
   notes: string
   expectedPaymentDate: string
-  expectedPaymentMethodId: string
   paymentCondition: PaymentCondition
   paymentMethodId: string
   paymentNotes: string

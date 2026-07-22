@@ -3,21 +3,24 @@ import type { ComponentProps } from 'react'
 
 import { cn } from '@/lib/utils'
 
-const badgeVariants = cva('inline-flex items-center rounded-md px-2 py-1 text-xs font-medium', {
-  defaultVariants: {
-    variant: 'default',
-  },
-  variants: {
-    variant: {
-      default: 'bg-primary/12 text-primary',
-      destructive: 'bg-destructive/15 text-destructive',
-      outline: 'border border-border text-muted-foreground',
-      secondary: 'bg-secondary text-secondary-foreground',
-      success: 'bg-emerald-500/15 text-emerald-300',
-      warning: 'bg-amber-500/15 text-amber-300',
+const badgeVariants = cva(
+  'min-w-fit inline-flex items-center rounded-md px-2 py-1 text-xs font-medium',
+  {
+    defaultVariants: {
+      variant: 'default',
+    },
+    variants: {
+      variant: {
+        default: 'bg-primary/12 text-primary',
+        destructive: 'bg-destructive/15 text-destructive',
+        outline: 'border border-border text-muted-foreground',
+        secondary: 'bg-secondary text-secondary-foreground',
+        success: 'bg-emerald-500/15 text-emerald-300',
+        warning: 'bg-amber-500/15 text-amber-300',
+      },
     },
   },
-})
+)
 
 type BadgeProps = ComponentProps<'span'> & VariantProps<typeof badgeVariants>
 

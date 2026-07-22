@@ -72,8 +72,6 @@ export async function updateOrder(input: UpdateOrderInput): Promise<ActionResult
   const calculatedOrder = calculationResult.order
   const expectedPaymentDate =
     orderInput.paymentCondition === 'CREDIT' ? parseDate(orderInput.expectedPaymentDate) : null
-  const expectedPaymentMethodId =
-    orderInput.paymentCondition === 'CREDIT' ? orderInput.expectedPaymentMethodId || null : null
   const paymentNotes =
     orderInput.paymentCondition === 'CREDIT' ? normalizeOptionalText(orderInput.paymentNotes) : null
 
@@ -85,7 +83,8 @@ export async function updateOrder(input: UpdateOrderInput): Promise<ActionResult
         deliveryFee: calculatedOrder.deliveryFee,
         discount: calculatedOrder.discount,
         expectedPaymentDate,
-        expectedPaymentMethodId,
+        expectedPaymentMethodId:
+          orderInput.paymentCondition === 'CREDIT' ? orderInput.paymentMethodId : null,
         notes: calculatedOrder.notes,
         paymentCondition: orderInput.paymentCondition,
         paymentMethodId: orderInput.paymentMethodId,

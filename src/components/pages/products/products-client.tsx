@@ -1,12 +1,12 @@
 'use client'
 
-import { Archive, Pencil, Plus, RotateCcw, Search } from 'lucide-react'
+import { Archive, Pencil, Plus, RotateCcw, Search, Trash2 } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import { useMemo, useState } from 'react'
 import { toast } from 'sonner'
 
 import type { ProductListItem, ProductSubcategoryOption } from '@/@types'
-import { deactivateProduct, reactivateProduct } from '@/actions/product'
+import { deactivateProduct, deleteProduct, reactivateProduct } from '@/actions/product'
 import { PageHeader } from '@/components/page-header'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -22,6 +22,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
+import { Tooltip } from '@/components/ui/tooltip'
 import { useDebouncedRouteSearch } from '@/hooks'
 import { formatCurrency } from '@/utils'
 
@@ -52,6 +53,7 @@ export function ProductsClient({ products, search, subcategories }: ProductsClie
   })
   const [dialogState, setDialogState] = useState<DialogState>(null)
   const [productToDeactivate, setProductToDeactivate] = useState<ProductListItem | null>(null)
+  const [productToDelete, setProductToDelete] = useState<ProductListItem | null>(null)
   const hasSearch = search.trim().length > 0
 
   const activeProductsCount = useMemo(
@@ -91,6 +93,23 @@ export function ProductsClient({ products, search, subcategories }: ProductsClie
     }
 
     toast.success(result.message)
+    router.refresh()
+  }
+
+  async function handleDeleteProduct() {
+    if (!productToDelete) {
+      return
+    }
+
+    const result = await deleteProduct({ id: productToDelete.id })
+
+    if (!result.success) {
+      toast.error(result.message)
+      return
+    }
+
+    toast.success(result.message)
+    setProductToDelete(null)
     router.refresh()
   }
 
@@ -159,36 +178,53 @@ export function ProductsClient({ products, search, subcategories }: ProductsClie
                     </TableCell>
                     <TableCell>
                       <div className="flex justify-end gap-2">
-                        <Button
-                          aria-label={`Editar ${product.name}`}
-                          onClick={() => setDialogState({ product, type: 'edit' })}
-                          size="icon"
-                          type="button"
-                          variant="ghost"
-                        >
-                          <Pencil className="size-4" />
-                        </Button>
+                        <Tooltip content={`Editar ${product.name}`}>
+                          <Button
+                            aria-label={`Editar ${product.name}`}
+                            onClick={() => setDialogState({ product, type: 'edit' })}
+                            size="icon"
+                            type="button"
+                            variant="ghost"
+                          >
+                            <Pencil className="size-4" />
+                          </Button>
+                        </Tooltip>
                         {product.isActive ? (
-                          <Button
-                            aria-label={`Desativar ${product.name}`}
-                            onClick={() => setProductToDeactivate(product)}
-                            size="icon"
-                            type="button"
-                            variant="ghost"
-                          >
-                            <Archive className="size-4" />
-                          </Button>
+                          <Tooltip content={`Inativar ${product.name}`}>
+                            <Button
+                              aria-label={`Inativar ${product.name}`}
+                              onClick={() => setProductToDeactivate(product)}
+                              size="icon"
+                              type="button"
+                              variant="ghost"
+                            >
+                              <Archive className="size-4" />
+                            </Button>
+                          </Tooltip>
                         ) : (
+                          <Tooltip content={`Reativar ${product.name}`}>
+                            <Button
+                              aria-label={`Reativar ${product.name}`}
+                              onClick={() => void handleReactivateProduct(product)}
+                              size="icon"
+                              type="button"
+                              variant="ghost"
+                            >
+                              <RotateCcw className="size-4" />
+                            </Button>
+                          </Tooltip>
+                        )}
+                        <Tooltip content={`Excluir ${product.name}`}>
                           <Button
-                            aria-label={`Reativar ${product.name}`}
-                            onClick={() => void handleReactivateProduct(product)}
+                            aria-label={`Excluir ${product.name}`}
+                            onClick={() => setProductToDelete(product)}
                             size="icon"
                             type="button"
                             variant="ghost"
                           >
-                            <RotateCcw className="size-4" />
+                            <Trash2 className="size-4" />
                           </Button>
-                        )}
+                        </Tooltip>
                       </div>
                     </TableCell>
                   </TableRow>
@@ -244,6 +280,19 @@ export function ProductsClient({ products, search, subcategories }: ProductsClie
         onOpenChange={(open) => !open && setProductToDeactivate(null)}
         open={productToDeactivate !== null}
         title="Desativar produto"
+      />
+
+      <ConfirmDialog
+        confirmLabel="Excluir"
+        description={
+          productToDelete
+            ? `O produto ${productToDelete.name} será excluído definitivamente se nunca tiver sido usado em pedidos.`
+            : 'O produto será excluído definitivamente.'
+        }
+        onConfirm={handleDeleteProduct}
+        onOpenChange={(open) => !open && setProductToDelete(null)}
+        open={productToDelete !== null}
+        title="Excluir produto"
       />
     </div>
   )

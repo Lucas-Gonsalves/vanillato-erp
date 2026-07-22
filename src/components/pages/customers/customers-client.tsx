@@ -1,12 +1,12 @@
 'use client'
 
-import { Archive, Pencil, Plus, RotateCcw, Search } from 'lucide-react'
+import { Archive, Pencil, Plus, RotateCcw, Search, Trash2 } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import { useMemo, useState } from 'react'
 import { toast } from 'sonner'
 
 import type { CustomerListItem } from '@/@types'
-import { deactivateCustomer, reactivateCustomer } from '@/actions/customer'
+import { deactivateCustomer, deleteCustomer, reactivateCustomer } from '@/actions/customer'
 import { PageHeader } from '@/components/page-header'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -22,6 +22,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
+import { Tooltip } from '@/components/ui/tooltip'
 import { useDebouncedRouteSearch } from '@/hooks'
 
 import { CustomerForm } from './customer-form'
@@ -50,6 +51,7 @@ export function CustomersClient({ customers, search }: CustomersClientProps) {
   })
   const [dialogState, setDialogState] = useState<DialogState>(null)
   const [customerToDeactivate, setCustomerToDeactivate] = useState<CustomerListItem | null>(null)
+  const [customerToDelete, setCustomerToDelete] = useState<CustomerListItem | null>(null)
 
   const hasSearch = search.trim().length > 0
   const modalTitle = dialogState?.type === 'edit' ? 'Editar cliente' : 'Novo cliente'
@@ -94,6 +96,23 @@ export function CustomersClient({ customers, search }: CustomersClientProps) {
       }
 
       toast.success(result.message)
+      router.refresh()
+    })
+  }
+
+  function handleDeleteCustomer() {
+    if (!customerToDelete) {
+      return Promise.resolve()
+    }
+
+    return deleteCustomer({ id: customerToDelete.id }).then((result) => {
+      if (!result.success) {
+        toast.error(result.message)
+        return
+      }
+
+      toast.success(result.message)
+      setCustomerToDelete(null)
       router.refresh()
     })
   }
@@ -175,36 +194,53 @@ export function CustomersClient({ customers, search }: CustomersClientProps) {
                     </TableCell>
                     <TableCell>
                       <div className="flex justify-end gap-2">
-                        <Button
-                          aria-label={`Editar ${customer.name}`}
-                          onClick={() => setDialogState({ customer, type: 'edit' })}
-                          size="icon"
-                          type="button"
-                          variant="ghost"
-                        >
-                          <Pencil className="size-4" />
-                        </Button>
+                        <Tooltip content={`Editar ${customer.name}`}>
+                          <Button
+                            aria-label={`Editar ${customer.name}`}
+                            onClick={() => setDialogState({ customer, type: 'edit' })}
+                            size="icon"
+                            type="button"
+                            variant="ghost"
+                          >
+                            <Pencil className="size-4" />
+                          </Button>
+                        </Tooltip>
                         {customer.isActive ? (
-                          <Button
-                            aria-label={`Desativar ${customer.name}`}
-                            onClick={() => setCustomerToDeactivate(customer)}
-                            size="icon"
-                            type="button"
-                            variant="ghost"
-                          >
-                            <Archive className="size-4" />
-                          </Button>
+                          <Tooltip content={`Inativar ${customer.name}`}>
+                            <Button
+                              aria-label={`Inativar ${customer.name}`}
+                              onClick={() => setCustomerToDeactivate(customer)}
+                              size="icon"
+                              type="button"
+                              variant="ghost"
+                            >
+                              <Archive className="size-4" />
+                            </Button>
+                          </Tooltip>
                         ) : (
+                          <Tooltip content={`Reativar ${customer.name}`}>
+                            <Button
+                              aria-label={`Reativar ${customer.name}`}
+                              onClick={() => handleReactivateCustomer(customer)}
+                              size="icon"
+                              type="button"
+                              variant="ghost"
+                            >
+                              <RotateCcw className="size-4" />
+                            </Button>
+                          </Tooltip>
+                        )}
+                        <Tooltip content={`Excluir ${customer.name}`}>
                           <Button
-                            aria-label={`Reativar ${customer.name}`}
-                            onClick={() => handleReactivateCustomer(customer)}
+                            aria-label={`Excluir ${customer.name}`}
+                            onClick={() => setCustomerToDelete(customer)}
                             size="icon"
                             type="button"
                             variant="ghost"
                           >
-                            <RotateCcw className="size-4" />
+                            <Trash2 className="size-4" />
                           </Button>
-                        )}
+                        </Tooltip>
                       </div>
                     </TableCell>
                   </TableRow>
@@ -255,6 +291,19 @@ export function CustomersClient({ customers, search }: CustomersClientProps) {
         onOpenChange={(open) => !open && setCustomerToDeactivate(null)}
         open={customerToDeactivate !== null}
         title="Desativar cliente"
+      />
+
+      <ConfirmDialog
+        confirmLabel="Excluir"
+        description={
+          customerToDelete
+            ? `O cliente ${customerToDelete.name} será excluído definitivamente se não possuir pedidos.`
+            : 'O cliente será excluído definitivamente.'
+        }
+        onConfirm={handleDeleteCustomer}
+        onOpenChange={(open) => !open && setCustomerToDelete(null)}
+        open={customerToDelete !== null}
+        title="Excluir cliente"
       />
     </div>
   )

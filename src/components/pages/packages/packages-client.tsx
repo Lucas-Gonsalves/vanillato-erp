@@ -1,13 +1,13 @@
 'use client'
 
-import { Archive, Pencil, Plus, RotateCcw, Search } from 'lucide-react'
+import { Archive, Pencil, Plus, RotateCcw, Search, Trash2 } from 'lucide-react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useMemo, useState } from 'react'
 import { toast } from 'sonner'
 
 import type { PackageListItem } from '@/@types'
-import { deactivatePackage, reactivatePackage } from '@/actions/package'
+import { deactivatePackage, deletePackage, reactivatePackage } from '@/actions/package'
 import { PageHeader } from '@/components/page-header'
 import { Badge } from '@/components/ui/badge'
 import { buttonVariants } from '@/components/ui/button'
@@ -23,6 +23,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
+import { Tooltip } from '@/components/ui/tooltip'
 import { useDebouncedRouteSearch } from '@/hooks'
 import { cn } from '@/lib/utils'
 import { formatCurrency } from '@/utils'
@@ -39,6 +40,7 @@ export function PackagesClient({ packages, search }: PackagesClientProps) {
     pathname: '/packages',
   })
   const [packageToDeactivate, setPackageToDeactivate] = useState<PackageListItem | null>(null)
+  const [packageToDelete, setPackageToDelete] = useState<PackageListItem | null>(null)
   const hasSearch = search.trim().length > 0
 
   const activePackagesCount = useMemo(
@@ -78,6 +80,23 @@ export function PackagesClient({ packages, search }: PackagesClientProps) {
     }
 
     toast.success(result.message)
+    router.refresh()
+  }
+
+  async function handleDeletePackage() {
+    if (!packageToDelete) {
+      return
+    }
+
+    const result = await deletePackage({ id: packageToDelete.id })
+
+    if (!result.success) {
+      toast.error(result.message)
+      return
+    }
+
+    toast.success(result.message)
+    setPackageToDelete(null)
     router.refresh()
   }
 
@@ -137,34 +156,51 @@ export function PackagesClient({ packages, search }: PackagesClientProps) {
                     </TableCell>
                     <TableCell>
                       <div className="flex justify-end gap-2">
-                        <Link
-                          aria-label={`Editar ${packageItem.name}`}
-                          className={cn(buttonVariants({ size: 'icon', variant: 'ghost' }))}
-                          href={`/packages/${packageItem.id}`}
-                        >
-                          <Pencil className="size-4" />
-                        </Link>
+                        <Tooltip content={`Editar ${packageItem.name}`}>
+                          <Link
+                            aria-label={`Editar ${packageItem.name}`}
+                            className={cn(buttonVariants({ size: 'icon', variant: 'ghost' }))}
+                            href={`/packages/${packageItem.id}`}
+                          >
+                            <Pencil className="size-4" />
+                          </Link>
+                        </Tooltip>
                         {packageItem.isActive ? (
-                          <Button
-                            aria-label={`Desativar ${packageItem.name}`}
-                            onClick={() => setPackageToDeactivate(packageItem)}
-                            size="icon"
-                            type="button"
-                            variant="ghost"
-                          >
-                            <Archive className="size-4" />
-                          </Button>
+                          <Tooltip content={`Inativar ${packageItem.name}`}>
+                            <Button
+                              aria-label={`Inativar ${packageItem.name}`}
+                              onClick={() => setPackageToDeactivate(packageItem)}
+                              size="icon"
+                              type="button"
+                              variant="ghost"
+                            >
+                              <Archive className="size-4" />
+                            </Button>
+                          </Tooltip>
                         ) : (
+                          <Tooltip content={`Reativar ${packageItem.name}`}>
+                            <Button
+                              aria-label={`Reativar ${packageItem.name}`}
+                              onClick={() => void handleReactivatePackage(packageItem)}
+                              size="icon"
+                              type="button"
+                              variant="ghost"
+                            >
+                              <RotateCcw className="size-4" />
+                            </Button>
+                          </Tooltip>
+                        )}
+                        <Tooltip content={`Excluir ${packageItem.name}`}>
                           <Button
-                            aria-label={`Reativar ${packageItem.name}`}
-                            onClick={() => void handleReactivatePackage(packageItem)}
+                            aria-label={`Excluir ${packageItem.name}`}
+                            onClick={() => setPackageToDelete(packageItem)}
                             size="icon"
                             type="button"
                             variant="ghost"
                           >
-                            <RotateCcw className="size-4" />
+                            <Trash2 className="size-4" />
                           </Button>
-                        )}
+                        </Tooltip>
                       </div>
                     </TableCell>
                   </TableRow>
@@ -203,6 +239,19 @@ export function PackagesClient({ packages, search }: PackagesClientProps) {
         onOpenChange={(open) => !open && setPackageToDeactivate(null)}
         open={packageToDeactivate !== null}
         title="Desativar pacote"
+      />
+
+      <ConfirmDialog
+        confirmLabel="Excluir"
+        description={
+          packageToDelete
+            ? `O pacote ${packageToDelete.name} será excluído definitivamente se nunca tiver sido usado em pedidos.`
+            : 'O pacote será excluído definitivamente.'
+        }
+        onConfirm={handleDeletePackage}
+        onOpenChange={(open) => !open && setPackageToDelete(null)}
+        open={packageToDelete !== null}
+        title="Excluir pacote"
       />
     </div>
   )

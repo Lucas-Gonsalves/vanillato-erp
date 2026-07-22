@@ -1,5 +1,6 @@
 export * from './create-package'
 export * from './deactivate-package'
+export * from './delete-package'
 export * from './reactivate-package'
 export * from './schema'
 export * from './update-package'

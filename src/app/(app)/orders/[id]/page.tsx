@@ -51,7 +51,6 @@ export default async function EditOrderPage({ params }: EditOrderPageProps) {
       },
       notes: true,
       expectedPaymentDate: true,
-      expectedPaymentMethodId: true,
       paymentCondition: true,
       paymentMethodId: true,
       paymentNotes: true,
@@ -129,7 +128,6 @@ export default async function EditOrderPage({ params }: EditOrderPageProps) {
           expectedPaymentDate: order.expectedPaymentDate
             ? toDateInputValue(order.expectedPaymentDate)
             : '',
-          expectedPaymentMethodId: order.expectedPaymentMethodId ?? '',
           paymentCondition: order.paymentCondition,
           paymentMethodId: order.paymentMethodId,
           paymentNotes: order.paymentNotes ?? '',

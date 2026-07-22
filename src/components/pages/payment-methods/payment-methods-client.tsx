@@ -1,12 +1,16 @@
 'use client'
 
-import { Archive, Pencil, Plus, RotateCcw, Search } from 'lucide-react'
+import { Archive, Pencil, Plus, RotateCcw, Search, Trash2 } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import { useMemo, useState } from 'react'
 import { toast } from 'sonner'
 
 import type { PaymentMethodListItem } from '@/@types'
-import { deactivatePaymentMethod, reactivatePaymentMethod } from '@/actions/payment-method'
+import {
+  deactivatePaymentMethod,
+  deletePaymentMethod,
+  reactivatePaymentMethod,
+} from '@/actions/payment-method'
 import { PageHeader } from '@/components/page-header'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -22,6 +26,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
+import { Tooltip } from '@/components/ui/tooltip'
 import { useDebouncedRouteSearch } from '@/hooks'
 
 import { PaymentMethodForm } from './payment-method-form'
@@ -51,6 +56,9 @@ export function PaymentMethodsClient({ paymentMethods, search }: PaymentMethodsC
   const [dialogState, setDialogState] = useState<DialogState>(null)
   const [paymentMethodToDeactivate, setPaymentMethodToDeactivate] =
     useState<PaymentMethodListItem | null>(null)
+  const [paymentMethodToDelete, setPaymentMethodToDelete] = useState<PaymentMethodListItem | null>(
+    null,
+  )
   const hasSearch = search.trim().length > 0
 
   const activePaymentMethodsCount = useMemo(
@@ -90,6 +98,23 @@ export function PaymentMethodsClient({ paymentMethods, search }: PaymentMethodsC
     }
 
     toast.success(result.message)
+    router.refresh()
+  }
+
+  async function handleDeletePaymentMethod() {
+    if (!paymentMethodToDelete) {
+      return
+    }
+
+    const result = await deletePaymentMethod({ id: paymentMethodToDelete.id })
+
+    if (!result.success) {
+      toast.error(result.message)
+      return
+    }
+
+    toast.success(result.message)
+    setPaymentMethodToDelete(null)
     router.refresh()
   }
 
@@ -144,36 +169,53 @@ export function PaymentMethodsClient({ paymentMethods, search }: PaymentMethodsC
                   </TableCell>
                   <TableCell>
                     <div className="flex justify-end gap-2">
-                      <Button
-                        aria-label={`Editar ${paymentMethod.name}`}
-                        onClick={() => setDialogState({ paymentMethod, type: 'edit' })}
-                        size="icon"
-                        type="button"
-                        variant="ghost"
-                      >
-                        <Pencil className="size-4" />
-                      </Button>
+                      <Tooltip content={`Editar ${paymentMethod.name}`}>
+                        <Button
+                          aria-label={`Editar ${paymentMethod.name}`}
+                          onClick={() => setDialogState({ paymentMethod, type: 'edit' })}
+                          size="icon"
+                          type="button"
+                          variant="ghost"
+                        >
+                          <Pencil className="size-4" />
+                        </Button>
+                      </Tooltip>
                       {paymentMethod.isActive ? (
-                        <Button
-                          aria-label={`Desativar ${paymentMethod.name}`}
-                          onClick={() => setPaymentMethodToDeactivate(paymentMethod)}
-                          size="icon"
-                          type="button"
-                          variant="ghost"
-                        >
-                          <Archive className="size-4" />
-                        </Button>
+                        <Tooltip content={`Inativar ${paymentMethod.name}`}>
+                          <Button
+                            aria-label={`Inativar ${paymentMethod.name}`}
+                            onClick={() => setPaymentMethodToDeactivate(paymentMethod)}
+                            size="icon"
+                            type="button"
+                            variant="ghost"
+                          >
+                            <Archive className="size-4" />
+                          </Button>
+                        </Tooltip>
                       ) : (
+                        <Tooltip content={`Reativar ${paymentMethod.name}`}>
+                          <Button
+                            aria-label={`Reativar ${paymentMethod.name}`}
+                            onClick={() => void handleReactivatePaymentMethod(paymentMethod)}
+                            size="icon"
+                            type="button"
+                            variant="ghost"
+                          >
+                            <RotateCcw className="size-4" />
+                          </Button>
+                        </Tooltip>
+                      )}
+                      <Tooltip content={`Excluir ${paymentMethod.name}`}>
                         <Button
-                          aria-label={`Reativar ${paymentMethod.name}`}
-                          onClick={() => void handleReactivatePaymentMethod(paymentMethod)}
+                          aria-label={`Excluir ${paymentMethod.name}`}
+                          onClick={() => setPaymentMethodToDelete(paymentMethod)}
                           size="icon"
                           type="button"
                           variant="ghost"
                         >
-                          <RotateCcw className="size-4" />
+                          <Trash2 className="size-4" />
                         </Button>
-                      )}
+                      </Tooltip>
                     </div>
                   </TableCell>
                 </TableRow>
@@ -227,6 +269,19 @@ export function PaymentMethodsClient({ paymentMethods, search }: PaymentMethodsC
         onOpenChange={(open) => !open && setPaymentMethodToDeactivate(null)}
         open={paymentMethodToDeactivate !== null}
         title="Desativar forma de pagamento"
+      />
+
+      <ConfirmDialog
+        confirmLabel="Excluir"
+        description={
+          paymentMethodToDelete
+            ? `A forma ${paymentMethodToDelete.name} será excluída definitivamente se nunca tiver sido usada em pedidos.`
+            : 'A forma de pagamento será excluída definitivamente.'
+        }
+        onConfirm={handleDeletePaymentMethod}
+        onOpenChange={(open) => !open && setPaymentMethodToDelete(null)}
+        open={paymentMethodToDelete !== null}
+        title="Excluir forma de pagamento"
       />
     </div>
   )
