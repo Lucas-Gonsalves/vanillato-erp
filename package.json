@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "build": "pnpm prisma generate && prisma migrate deploy && next build && pnpm seed",
+    "build": "pnpm prisma generate && prisma migrate deploy && pnpm seed && next build",
     "start": "next start",
     "start:dev": "next dev",
     "lint": "eslint",
