@@ -3,6 +3,7 @@
 import { revalidatePath } from 'next/cache'
 
 import { calculateOrder } from '@/actions/order/order-calculator'
+import { syncOrderReceivable } from '@/actions/order/order-receivable'
 import { type OrderField, type OrderInput, orderSchema } from '@/actions/order/schema'
 import type { ActionResult } from '@/actions/types'
 import { getCurrentUser } from '@/lib/auth'
@@ -76,21 +77,49 @@ export async function createOrder(input: OrderInput): Promise<ActionResult<Order
   }
 
   const calculatedOrder = calculationResult.order
+  const expectedPaymentDate =
+    parsedInput.data.paymentCondition === 'CREDIT'
+      ? parseDate(parsedInput.data.expectedPaymentDate)
+      : null
+  const expectedPaymentMethodId =
+    parsedInput.data.paymentCondition === 'CREDIT'
+      ? parsedInput.data.expectedPaymentMethodId || null
+      : null
+  const paymentNotes =
+    parsedInput.data.paymentCondition === 'CREDIT'
+      ? normalizeOptionalText(parsedInput.data.paymentNotes)
+      : null
 
-  await prisma.order.create({
-    data: {
-      createdById: user.id,
-      customerId: parsedInput.data.customerId,
-      deliveryDate: calculatedOrder.deliveryDate,
-      deliveryFee: calculatedOrder.deliveryFee,
-      discount: calculatedOrder.discount,
-      items: {
-        create: calculatedOrder.items,
+  await prisma.$transaction(async (transaction) => {
+    const order = await transaction.order.create({
+      data: {
+        createdById: user.id,
+        customerId: parsedInput.data.customerId,
+        deliveryDate: calculatedOrder.deliveryDate,
+        deliveryFee: calculatedOrder.deliveryFee,
+        discount: calculatedOrder.discount,
+        expectedPaymentDate,
+        expectedPaymentMethodId,
+        items: {
+          create: calculatedOrder.items,
+        },
+        notes: calculatedOrder.notes,
+        paymentCondition: parsedInput.data.paymentCondition,
+        paymentMethodId: parsedInput.data.paymentMethodId,
+        paymentNotes,
+        total: calculatedOrder.total,
       },
-      notes: calculatedOrder.notes,
-      paymentMethodId: parsedInput.data.paymentMethodId,
+    })
+
+    await syncOrderReceivable(transaction, {
+      customerId: parsedInput.data.customerId,
+      dueDate: expectedPaymentDate,
+      note: paymentNotes,
+      orderId: order.id,
+      paymentCondition: parsedInput.data.paymentCondition,
       total: calculatedOrder.total,
-    },
+      userId: user.id,
+    })
   })
 
   revalidatePath('/orders')
@@ -100,4 +129,14 @@ export async function createOrder(input: OrderInput): Promise<ActionResult<Order
     message: 'Pedido criado com sucesso.',
     success: true,
   }
+}
+
+function parseDate(value: string | undefined) {
+  return value ? new Date(`${value}T00:00:00`) : null
+}
+
+function normalizeOptionalText(value: string | undefined) {
+  const trimmedValue = value?.trim()
+
+  return trimmedValue ? trimmedValue : null
 }

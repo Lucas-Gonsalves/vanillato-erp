@@ -1,4 +1,4 @@
-import { Plus, ReceiptText, ShoppingBag, Users } from 'lucide-react'
+import { HandCoins, Plus, ReceiptText, ShoppingBag, Users } from 'lucide-react'
 import Link from 'next/link'
 
 import { Badge } from '@/components/ui/badge'
@@ -7,7 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { OrderStatus } from '@/generated/prisma/enums'
 import prisma from '@/lib/prisma'
 import { cn } from '@/lib/utils'
-import { formatCurrency } from '@/utils'
+import { endOfDay, formatCurrency, startOfDay } from '@/utils'
 
 const orderStatusLabels = {
   CANCELED: 'Cancelado',
@@ -23,6 +23,12 @@ export default async function DashboardPage() {
     productionOrders,
     readyOrders,
     overdueOrders,
+    ordersToday,
+    overdueReceivables,
+    receivablesToday,
+    receivablesThisWeek,
+    receivablesThisMonth,
+    debtors,
     recentCustomers,
     recentOrders,
   ] = await Promise.all([
@@ -38,6 +44,94 @@ export default async function DashboardPage() {
           in: [OrderStatus.PENDING, OrderStatus.IN_PRODUCTION, OrderStatus.READY],
         },
       },
+    }),
+    prisma.order.count({
+      where: {
+        deliveryDate: {
+          gte: startOfDay(new Date()),
+          lte: endOfDay(new Date()),
+        },
+        status: {
+          in: [OrderStatus.PENDING, OrderStatus.IN_PRODUCTION, OrderStatus.READY],
+        },
+      },
+    }),
+    prisma.accountReceivable.count({
+      where: {
+        dueDate: {
+          lt: startOfDay(new Date()),
+        },
+        remainingAmount: {
+          gt: 0,
+        },
+      },
+    }),
+    prisma.accountReceivable.findMany({
+      select: {
+        remainingAmount: true,
+      },
+      where: {
+        dueDate: {
+          gte: startOfDay(new Date()),
+          lte: endOfDay(new Date()),
+        },
+        remainingAmount: {
+          gt: 0,
+        },
+      },
+    }),
+    prisma.accountReceivable.findMany({
+      select: {
+        remainingAmount: true,
+      },
+      where: {
+        dueDate: {
+          gte: startOfDay(new Date()),
+          lte: endOfDay(addDays(new Date(), 7)),
+        },
+        remainingAmount: {
+          gt: 0,
+        },
+      },
+    }),
+    prisma.accountReceivable.findMany({
+      select: {
+        remainingAmount: true,
+      },
+      where: {
+        dueDate: {
+          gte: new Date(new Date().getFullYear(), new Date().getMonth(), 1),
+          lte: endOfDay(new Date(new Date().getFullYear(), new Date().getMonth() + 1, 0)),
+        },
+        remainingAmount: {
+          gt: 0,
+        },
+      },
+    }),
+    prisma.customer.findMany({
+      select: {
+        name: true,
+        receivables: {
+          select: {
+            remainingAmount: true,
+          },
+          where: {
+            remainingAmount: {
+              gt: 0,
+            },
+          },
+        },
+      },
+      where: {
+        receivables: {
+          some: {
+            remainingAmount: {
+              gt: 0,
+            },
+          },
+        },
+      },
+      take: 20,
     }),
     prisma.customer.findMany({
       orderBy: {
@@ -84,10 +178,28 @@ export default async function DashboardPage() {
       value: readyOrders,
     },
     {
-      label: 'Atrasados',
+      label: 'Pedidos atrasados',
       value: overdueOrders,
     },
+    {
+      label: 'Pedidos para hoje',
+      value: ordersToday,
+    },
+    {
+      label: 'Contas vencidas',
+      value: overdueReceivables,
+    },
   ]
+  const largestDebtor = debtors
+    .map((customer) => ({
+      amountInCents: customer.receivables.reduce(
+        (total, receivable) => total + decimalToCents(receivable.remainingAmount),
+        0,
+      ),
+      name: customer.name,
+    }))
+    .sort((first, second) => second.amountInCents - first.amountInCents)
+    .at(0)
 
   return (
     <div className="space-y-6">
@@ -124,6 +236,10 @@ export default async function DashboardPage() {
           <ShoppingBag className="size-4" />
           Produtos
         </Link>
+        <Link className={cn(buttonVariants({ variant: 'secondary' }))} href="/accounts-receivable">
+          <HandCoins className="size-4" />
+          Registrar pagamento
+        </Link>
       </section>
 
       <section className="grid gap-6 lg:grid-cols-[1fr_360px]">
@@ -133,11 +249,30 @@ export default async function DashboardPage() {
               <CardTitle>Pedidos que precisam de atenção</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="grid gap-3 sm:grid-cols-3">
+              <div className="grid gap-3 sm:grid-cols-4">
                 <StatusSummary label="Pendentes" value={pendingOrders} variant="warning" />
                 <StatusSummary label="Em produção" value={productionOrders} variant="secondary" />
                 <StatusSummary label="Prontos" value={readyOrders} variant="success" />
                 <StatusSummary label="Atrasados" value={overdueOrders} variant="destructive" />
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Recebimentos previstos</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="grid gap-3 sm:grid-cols-3">
+                <FinancialSummary label="Hoje" value={formatCents(sumDecimals(receivablesToday))} />
+                <FinancialSummary
+                  label="Esta semana"
+                  value={formatCents(sumDecimals(receivablesThisWeek))}
+                />
+                <FinancialSummary
+                  label="Este mês"
+                  value={formatCents(sumDecimals(receivablesThisMonth))}
+                />
               </div>
             </CardContent>
           </Card>
@@ -183,9 +318,16 @@ export default async function DashboardPage() {
 
         <Card>
           <CardHeader>
-            <CardTitle>Clientes recentes</CardTitle>
+            <CardTitle>Clientes</CardTitle>
           </CardHeader>
-          <CardContent>
+          <CardContent className="space-y-5">
+            <div className="border-border/70 rounded-md border p-4">
+              <p className="text-muted-foreground text-sm">Maior devedor</p>
+              <p className="mt-2 text-sm font-medium">{largestDebtor?.name ?? 'Nenhum cliente'}</p>
+              <p className="text-lg font-semibold">
+                {formatCents(largestDebtor?.amountInCents ?? 0)}
+              </p>
+            </div>
             {recentCustomers.length > 0 ? (
               <div className="space-y-3">
                 {recentCustomers.map((customer) => (
@@ -213,6 +355,25 @@ export default async function DashboardPage() {
       </section>
     </div>
   )
+}
+
+function addDays(date: Date, days: number) {
+  const nextDate = new Date(date)
+  nextDate.setDate(date.getDate() + days)
+
+  return nextDate
+}
+
+function decimalToCents(value: { toString(): string }) {
+  return Math.round(Number(value.toString()) * 100)
+}
+
+function sumDecimals(items: { remainingAmount: { toString(): string } }[]) {
+  return items.reduce((total, item) => total + decimalToCents(item.remainingAmount), 0)
+}
+
+function formatCents(value: number) {
+  return formatCurrency((value / 100).toFixed(2))
 }
 
 type StatusSummaryProps = {
@@ -244,6 +405,15 @@ function StatusSummary({ label, value, variant }: StatusSummaryProps) {
         <Badge variant={variant}>{label}</Badge>
       </div>
       <p className="text-2xl font-semibold">{value}</p>
+    </div>
+  )
+}
+
+function FinancialSummary({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="border-border/70 rounded-md border p-4">
+      <p className="text-muted-foreground text-sm">{label}</p>
+      <p className="mt-2 text-lg font-semibold">{value}</p>
     </div>
   )
 }

@@ -29,6 +29,7 @@ async function main() {
     },
     update: {
       name: adminName,
+      password: hashedPassword,
       role: Role.ADMIN,
     },
     where: {

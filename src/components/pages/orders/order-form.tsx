@@ -17,7 +17,7 @@ import { Label } from '@/components/ui/label'
 import { Modal } from '@/components/ui/modal'
 import { Select } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
-import { OrderItemType } from '@/generated/prisma/enums'
+import { OrderItemType, PaymentCondition } from '@/generated/prisma/enums'
 import { formatCurrency } from '@/utils'
 
 type OrderFormProps = {
@@ -50,7 +50,11 @@ export function OrderForm({ options, orderData }: OrderFormProps) {
       discount: orderData ? decimalToInputValue(orderData.discount) : '',
       items: orderData?.items.length ? orderData.items : [emptyOrderItem],
       notes: orderData?.notes ?? '',
+      expectedPaymentDate: orderData?.expectedPaymentDate ?? '',
+      expectedPaymentMethodId: orderData?.expectedPaymentMethodId ?? '',
+      paymentCondition: orderData?.paymentCondition ?? PaymentCondition.CASH,
       paymentMethodId: orderData?.paymentMethodId ?? '',
+      paymentNotes: orderData?.paymentNotes ?? '',
     },
     resolver: zodResolver(orderSchema),
   })
@@ -67,6 +71,10 @@ export function OrderForm({ options, orderData }: OrderFormProps) {
     name: 'customerId',
   })
   const selectedCustomer = options.customers.find((customer) => customer.id === customerId)
+  const paymentCondition = useWatch({
+    control,
+    name: 'paymentCondition',
+  })
 
   function onSubmit(values: OrderInput) {
     startTransition(() => {
@@ -140,9 +148,62 @@ export function OrderForm({ options, orderData }: OrderFormProps) {
           </div>
 
           <div className="space-y-2">
+            <Label htmlFor="order-payment-condition">Condição de pagamento</Label>
+            <Select id="order-payment-condition" {...register('paymentCondition')}>
+              <option value={PaymentCondition.CASH}>À vista</option>
+              <option value={PaymentCondition.CREDIT}>A prazo</option>
+            </Select>
+          </div>
+
+          <div className="space-y-2">
             <Label htmlFor="order-delivery-date">Data de entrega</Label>
             <Input id="order-delivery-date" type="date" {...register('deliveryDate')} />
           </div>
+
+          {paymentCondition === PaymentCondition.CREDIT ? (
+            <>
+              <div className="space-y-2">
+                <Label htmlFor="order-expected-payment-date">Data prevista de pagamento</Label>
+                <Input
+                  id="order-expected-payment-date"
+                  type="date"
+                  {...register('expectedPaymentDate')}
+                />
+                {errors.expectedPaymentDate?.message ? (
+                  <p className="text-destructive text-sm">{errors.expectedPaymentDate.message}</p>
+                ) : null}
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="order-expected-payment-method">Forma prevista</Label>
+                <Select id="order-expected-payment-method" {...register('expectedPaymentMethodId')}>
+                  <option value="">Selecione uma forma</option>
+                  {options.paymentMethods.map((paymentMethod) => (
+                    <option key={paymentMethod.id} value={paymentMethod.id}>
+                      {paymentMethod.name}
+                    </option>
+                  ))}
+                </Select>
+                {errors.expectedPaymentMethodId?.message ? (
+                  <p className="text-destructive text-sm">
+                    {errors.expectedPaymentMethodId.message}
+                  </p>
+                ) : null}
+              </div>
+
+              <div className="space-y-2 lg:col-span-2">
+                <Label htmlFor="order-payment-notes">Observação do pagamento</Label>
+                <Textarea
+                  id="order-payment-notes"
+                  placeholder="Condição combinada, observações de cobrança ou previsão"
+                  {...register('paymentNotes')}
+                />
+                {errors.paymentNotes?.message ? (
+                  <p className="text-destructive text-sm">{errors.paymentNotes.message}</p>
+                ) : null}
+              </div>
+            </>
+          ) : null}
 
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-2">

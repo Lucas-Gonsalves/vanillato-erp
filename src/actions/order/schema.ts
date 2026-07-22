@@ -1,6 +1,6 @@
 import { z } from 'zod'
 
-import { OrderItemType, OrderStatus } from '@/generated/prisma/enums'
+import { OrderItemType, OrderStatus, PaymentCondition } from '@/generated/prisma/enums'
 import { parseCurrencyToDecimalString } from '@/utils'
 
 const optionalPriceSchema = z
@@ -58,6 +58,14 @@ export const orderSchema = z
       .max(500, 'As observações devem ter no máximo 500 caracteres.')
       .optional(),
     paymentMethodId: z.string().min(1, 'Selecione uma forma de pagamento.'),
+    paymentCondition: z.enum([PaymentCondition.CASH, PaymentCondition.CREDIT]),
+    expectedPaymentDate: z.string().optional(),
+    expectedPaymentMethodId: z.string().optional(),
+    paymentNotes: z
+      .string()
+      .trim()
+      .max(500, 'As observações de pagamento devem ter no máximo 500 caracteres.')
+      .optional(),
   })
   .superRefine((value, context) => {
     const itemKeys = new Set<string>()
@@ -81,6 +89,24 @@ export const orderSchema = z
 
       itemKeys.add(itemKey)
     })
+
+    if (value.paymentCondition === PaymentCondition.CREDIT) {
+      if (!value.expectedPaymentDate) {
+        context.addIssue({
+          code: 'custom',
+          message: 'Informe a data prevista de pagamento.',
+          path: ['expectedPaymentDate'],
+        })
+      }
+
+      if (!value.expectedPaymentMethodId) {
+        context.addIssue({
+          code: 'custom',
+          message: 'Informe a forma prevista de pagamento.',
+          path: ['expectedPaymentMethodId'],
+        })
+      }
+    }
   })
 
 export const orderIdSchema = z.object({

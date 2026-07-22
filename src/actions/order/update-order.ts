@@ -3,11 +3,14 @@
 import { revalidatePath } from 'next/cache'
 
 import { calculateOrder } from '@/actions/order/order-calculator'
+import { syncOrderReceivable } from '@/actions/order/order-receivable'
 import { type OrderField, type UpdateOrderInput, updateOrderSchema } from '@/actions/order/schema'
 import type { ActionResult } from '@/actions/types'
+import { getCurrentUser } from '@/lib/auth'
 import prisma from '@/lib/prisma'
 
 export async function updateOrder(input: UpdateOrderInput): Promise<ActionResult<OrderField>> {
+  const user = await getCurrentUser()
   const parsedInput = updateOrderSchema.safeParse(input)
 
   if (!parsedInput.success) {
@@ -67,6 +70,12 @@ export async function updateOrder(input: UpdateOrderInput): Promise<ActionResult
   }
 
   const calculatedOrder = calculationResult.order
+  const expectedPaymentDate =
+    orderInput.paymentCondition === 'CREDIT' ? parseDate(orderInput.expectedPaymentDate) : null
+  const expectedPaymentMethodId =
+    orderInput.paymentCondition === 'CREDIT' ? orderInput.expectedPaymentMethodId || null : null
+  const paymentNotes =
+    orderInput.paymentCondition === 'CREDIT' ? normalizeOptionalText(orderInput.paymentNotes) : null
 
   await prisma.$transaction(async (transaction) => {
     await transaction.order.update({
@@ -75,8 +84,12 @@ export async function updateOrder(input: UpdateOrderInput): Promise<ActionResult
         deliveryDate: calculatedOrder.deliveryDate,
         deliveryFee: calculatedOrder.deliveryFee,
         discount: calculatedOrder.discount,
+        expectedPaymentDate,
+        expectedPaymentMethodId,
         notes: calculatedOrder.notes,
+        paymentCondition: orderInput.paymentCondition,
         paymentMethodId: orderInput.paymentMethodId,
+        paymentNotes,
         total: calculatedOrder.total,
       },
       where: {
@@ -101,6 +114,16 @@ export async function updateOrder(input: UpdateOrderInput): Promise<ActionResult
         unitPrice: item.unitPrice,
       })),
     })
+
+    await syncOrderReceivable(transaction, {
+      customerId: orderInput.customerId,
+      dueDate: expectedPaymentDate,
+      note: paymentNotes,
+      orderId: id,
+      paymentCondition: orderInput.paymentCondition,
+      total: calculatedOrder.total,
+      userId: user?.id ?? null,
+    })
   })
 
   revalidatePath('/orders')
@@ -111,4 +134,14 @@ export async function updateOrder(input: UpdateOrderInput): Promise<ActionResult
     message: 'Pedido atualizado com sucesso.',
     success: true,
   }
+}
+
+function parseDate(value: string | undefined) {
+  return value ? new Date(`${value}T00:00:00`) : null
+}
+
+function normalizeOptionalText(value: string | undefined) {
+  const trimmedValue = value?.trim()
+
+  return trimmedValue ? trimmedValue : null
 }

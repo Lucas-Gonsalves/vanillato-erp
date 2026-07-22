@@ -24,19 +24,44 @@ export default async function CustomersPage({ searchParams }: CustomersPageProps
     ],
     select: {
       address: true,
+      allowCreditPurchase: true,
+      alternativePhone: true,
+      birthDate: true,
       city: true,
+      complement: true,
+      cpf: true,
+      creditLimit: true,
       district: true,
+      gender: true,
       id: true,
+      internalNotes: true,
       instagram: true,
       isActive: true,
+      isVip: true,
       name: true,
+      number: true,
       notes: true,
+      origin: true,
+      personType: true,
       phone: true,
+      reference: true,
+      street: true,
+      whatsapp: true,
+      zipCode: true,
     },
     where: customerWhere,
   })
 
-  return <CustomersClient customers={customers} search={trimmedSearch} />
+  return (
+    <CustomersClient
+      customers={customers.map((customer) => ({
+        ...customer,
+        birthDate: customer.birthDate?.toISOString() ?? null,
+        creditLimit: customer.creditLimit?.toString() ?? null,
+      }))}
+      search={trimmedSearch}
+    />
+  )
 }
 
 function buildCustomerWhere(search: string): Prisma.CustomerWhereInput | undefined {

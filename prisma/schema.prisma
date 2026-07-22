@@ -30,6 +30,33 @@ enum OrderItemType {
   PACKAGE
 }
 
+enum PersonType {
+  INDIVIDUAL
+  COMPANY
+}
+
+enum PaymentCondition {
+  CASH
+  CREDIT
+}
+
+enum ReceivableStatus {
+  OPEN
+  PARTIALLY_PAID
+  PAID
+  OVERDUE
+  CANCELED
+}
+
+enum ReceivableHistoryEventType {
+  CREATED
+  DUE_DATE_CHANGED
+  PAYMENT_REGISTERED
+  PAYMENT_CANCELED
+  PAID
+  CANCELED
+}
+
 model User {
   id       String @id @default(cuid())
   name     String
@@ -41,6 +68,9 @@ model User {
   updatedAt DateTime @updatedAt @map("updated_at")
 
   createdOrders Order[]
+  receivableHistory AccountReceivableHistory[] @relation("ReceivableHistoryUser")
+  receivablePayments AccountReceivablePayment[] @relation("ReceivablePaymentCreator")
+  receivableRenegotiations AccountReceivableRenegotiation[] @relation("ReceivableRenegotiationUser")
 
   @@map("users")
 }
@@ -50,11 +80,28 @@ model Customer {
 
   name      String
   phone     String?
+  alternativePhone String? @map("alternative_phone")
+  whatsapp String?
   instagram String?
 
   city     String?
   district String?
   address  String?
+  zipCode String? @map("zip_code")
+  street String?
+  number String?
+  complement String?
+  reference String?
+
+  cpf String?
+  personType PersonType? @map("person_type")
+  birthDate DateTime? @map("birth_date")
+  gender String?
+  origin String?
+  creditLimit Decimal? @map("credit_limit") @db.Decimal(10, 2)
+  allowCreditPurchase Boolean @default(false) @map("allow_credit_purchase")
+  isVip Boolean @default(false) @map("is_vip")
+  internalNotes String? @map("internal_notes")
 
   notes String?
 
@@ -64,6 +111,7 @@ model Customer {
   updatedAt DateTime @updatedAt @map("updated_at")
 
   orders Order[]
+  receivables AccountReceivable[]
 
   @@map("customers")
 }
@@ -161,13 +209,18 @@ model PaymentMethod {
   id String @id @default(cuid())
 
   name String @unique
+  displayOrder Int @default(0) @map("display_order")
+  badgeColor String? @map("badge_color")
+  description String?
 
   isActive Boolean @default(true) @map("is_active")
 
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
-  orders Order[]
+  orders Order[] @relation("OrderPaymentMethod")
+  expectedOrders Order[] @relation("ExpectedPaymentMethod")
+  receivablePayments AccountReceivablePayment[]
 
   @@map("payment_methods")
 }
@@ -179,7 +232,12 @@ model Order {
   customer   Customer @relation(fields: [customerId], references: [id], onDelete: Restrict)
 
   paymentMethodId String        @map("payment_method_id")
-  paymentMethod   PaymentMethod @relation(fields: [paymentMethodId], references: [id], onDelete: Restrict)
+  paymentMethod   PaymentMethod @relation("OrderPaymentMethod", fields: [paymentMethodId], references: [id], onDelete: Restrict)
+  paymentCondition PaymentCondition @default(CASH) @map("payment_condition")
+  expectedPaymentMethodId String? @map("expected_payment_method_id")
+  expectedPaymentMethod PaymentMethod? @relation("ExpectedPaymentMethod", fields: [expectedPaymentMethodId], references: [id], onDelete: SetNull)
+  expectedPaymentDate DateTime? @map("expected_payment_date")
+  paymentNotes String? @map("payment_notes")
 
   createdById String? @map("created_by_id")
   createdBy   User?   @relation(fields: [createdById], references: [id], onDelete: SetNull)
@@ -198,8 +256,101 @@ model Order {
   updatedAt DateTime @updatedAt @map("updated_at")
 
   items OrderItem[]
+  receivable AccountReceivable?
 
   @@map("orders")
+}
+
+model AccountReceivable {
+  id String @id @default(cuid())
+
+  customerId String @map("customer_id")
+  customer Customer @relation(fields: [customerId], references: [id], onDelete: Restrict)
+
+  orderId String @unique @map("order_id")
+  order Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  totalAmount Decimal @map("total_amount") @db.Decimal(10, 2)
+  paidAmount Decimal @default(0) @map("paid_amount") @db.Decimal(10, 2)
+  remainingAmount Decimal @map("remaining_amount") @db.Decimal(10, 2)
+  dueDate DateTime @map("due_date")
+  status ReceivableStatus @default(OPEN)
+  note String?
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  payments AccountReceivablePayment[]
+  history AccountReceivableHistory[]
+  renegotiations AccountReceivableRenegotiation[]
+
+  @@index([customerId])
+  @@index([dueDate])
+  @@index([status])
+  @@map("accounts_receivable")
+}
+
+model AccountReceivablePayment {
+  id String @id @default(cuid())
+
+  receivableId String @map("receivable_id")
+  receivable AccountReceivable @relation(fields: [receivableId], references: [id], onDelete: Cascade)
+
+  paymentMethodId String? @map("payment_method_id")
+  paymentMethod PaymentMethod? @relation(fields: [paymentMethodId], references: [id], onDelete: SetNull)
+
+  amount Decimal @db.Decimal(10, 2)
+  paidAt DateTime @map("paid_at")
+  note String?
+  canceledAt DateTime? @map("canceled_at")
+
+  createdById String? @map("created_by_id")
+  createdBy User? @relation("ReceivablePaymentCreator", fields: [createdById], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@index([receivableId])
+  @@map("account_receivable_payments")
+}
+
+model AccountReceivableHistory {
+  id String @id @default(cuid())
+
+  receivableId String @map("receivable_id")
+  receivable AccountReceivable @relation(fields: [receivableId], references: [id], onDelete: Cascade)
+
+  eventType ReceivableHistoryEventType @map("event_type")
+  oldValue String? @map("old_value")
+  newValue String? @map("new_value")
+  note String?
+
+  userId String? @map("user_id")
+  user User? @relation("ReceivableHistoryUser", fields: [userId], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([receivableId])
+  @@map("account_receivable_history")
+}
+
+model AccountReceivableRenegotiation {
+  id String @id @default(cuid())
+
+  receivableId String @map("receivable_id")
+  receivable AccountReceivable @relation(fields: [receivableId], references: [id], onDelete: Cascade)
+
+  oldDueDate DateTime @map("old_due_date")
+  newDueDate DateTime @map("new_due_date")
+  reason String
+
+  userId String? @map("user_id")
+  user User? @relation("ReceivableRenegotiationUser", fields: [userId], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([receivableId])
+  @@map("account_receivable_renegotiations")
 }
 
 model OrderItem {

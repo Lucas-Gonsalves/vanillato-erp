@@ -3,6 +3,7 @@
 import {
   CreditCard,
   FolderTree,
+  HandCoins,
   Home,
   LogOut,
   Package,
@@ -19,7 +20,7 @@ import type { ReactNode } from 'react'
 import { useMemo, useState } from 'react'
 
 import { logout } from '@/actions/auth'
-import logoSquare from '@/assets/vanillato-logo-square.png'
+import logoSquare from '@/assets/vanillato-logo-off-title.svg'
 import { Header } from '@/components/header'
 import { Button, buttonVariants } from '@/components/ui/button'
 import type { AuthenticatedUser } from '@/lib/auth'
@@ -42,6 +43,12 @@ const navigationItems = [
     icon: ReceiptText,
     label: 'Pedidos',
     title: 'Pedidos',
+  },
+  {
+    href: '/accounts-receivable',
+    icon: HandCoins,
+    label: 'Contas a Receber',
+    title: 'Contas a Receber',
   },
   {
     href: '/customers',
@@ -121,14 +128,14 @@ export function AppShell({ children, user }: AppShellProps) {
           >
             <Image
               alt="Vanillato"
-              className="size-9 rounded-md"
+              className="rounded-md"
               height={36}
               priority
               src={logoSquare}
               width={36}
             />
-            <span className="text-sidebar-foreground truncate text-sm font-semibold">
-              Vanillato ERP
+            <span className="text-sidebar-foreground truncate text-sm leading-none font-extralight tracking-[0.35em] uppercase select-none">
+              Vanillato
             </span>
           </Link>
 

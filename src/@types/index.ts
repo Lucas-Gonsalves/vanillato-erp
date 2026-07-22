@@ -1,3 +1,4 @@
+export * from './account-receivable'
 export * from './category'
 export * from './customer'
 export * from './order'

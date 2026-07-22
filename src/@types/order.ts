@@ -1,4 +1,4 @@
-import type { OrderItemType, OrderStatus } from '@/generated/prisma/enums'
+import type { OrderItemType, OrderStatus, PaymentCondition } from '@/generated/prisma/enums'
 
 export type OrderListItem = {
   createdAt: string
@@ -50,7 +50,11 @@ export type OrderFormData = {
   id: string
   items: OrderFormItem[]
   notes: string
+  expectedPaymentDate: string
+  expectedPaymentMethodId: string
+  paymentCondition: PaymentCondition
   paymentMethodId: string
+  paymentNotes: string
 }
 
 export type OrderFormOptions = {
