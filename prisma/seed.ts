@@ -5,10 +5,6 @@ import { PrismaPg } from '@prisma/adapter-pg'
 import { PrismaClient, Role } from '../src/generated/prisma/client'
 import { hashPassword } from '../src/lib/password'
 
-const adminEmail = process.env.ADMIN_EMAIL ?? 'admin@vanillato.local'
-const adminPassword = process.env.ADMIN_PASSWORD ?? 'admin123456'
-const adminName = process.env.ADMIN_NAME ?? 'Administrador'
-
 const adapter = new PrismaPg({
   connectionString: process.env.DATABASE_URL,
 })
@@ -17,50 +13,74 @@ const prisma = new PrismaClient({
   adapter,
 })
 
-async function main() {
-  const hashedPassword = await hashPassword(adminPassword)
+const admins = [
+  {
+    email: 'lucas@dev.local.com',
+    name: 'Lucas Gonçalves',
+    password: '11a16b22c.',
+  },
+  {
+    email: 'claudiane@adm.local.com',
+    name: 'Claudiane Oliczyk',
+    password: 'Leticia40',
+  },
+  {
+    email: 'eliezer@adm.local.com',
+    name: 'Eliezer',
+    password: 'Leticia41',
+  },
+]
 
-  await prisma.user.upsert({
-    create: {
-      email: adminEmail.toLowerCase(),
-      name: adminName,
-      password: hashedPassword,
-      role: Role.ADMIN,
-    },
-    update: {
-      name: adminName,
-      password: hashedPassword,
-      role: Role.ADMIN,
-    },
-    where: {
-      email: adminEmail.toLowerCase(),
-    },
-  })
+async function main() {
+  for (const admin of admins) {
+    const hashedPassword = await hashPassword(admin.password)
+
+    await prisma.user.upsert({
+      where: {
+        email: admin.email.toLowerCase(),
+      },
+      create: {
+        email: admin.email.toLowerCase(),
+        name: admin.name,
+        password: hashedPassword,
+        role: Role.ADMIN,
+      },
+      update: {
+        name: admin.name,
+        password: hashedPassword,
+        role: Role.ADMIN,
+      },
+    })
+
+    console.log(`✔ Admin criado/atualizado: ${admin.email}`)
+  }
 
   const paymentMethods = ['Pix', 'Dinheiro', 'Cartão de crédito', 'Cartão de débito']
 
   await Promise.all(
     paymentMethods.map((name) =>
       prisma.paymentMethod.upsert({
+        where: {
+          name,
+        },
         create: {
           name,
         },
         update: {
           isActive: true,
         },
-        where: {
-          name,
-        },
       }),
     ),
   )
+
+  console.log('✔ Formas de pagamento criadas/atualizadas.')
 }
 
 main()
   .then(async () => {
     await prisma.$disconnect()
   })
-  .catch(async (error: unknown) => {
+  .catch(async (error) => {
     console.error(error)
     await prisma.$disconnect()
     process.exit(1)
